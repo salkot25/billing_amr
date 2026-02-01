@@ -1,0 +1,27 @@
+name: billing_amr
+description: "A new Flutter project."
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.4.1
+  sqflite_common_ffi: ^2.4.0
+  path: ^1.9.1
+  excel: ^4.0.6
+  flutter_riverpod: ^2.6.1
+  intl: ^0.19.0
+  file_picker: ^8.1.4
+  fl_chart: ^0.70.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
