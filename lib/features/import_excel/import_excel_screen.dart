@@ -732,7 +732,7 @@ class _HistorySection extends ConsumerStatefulWidget {
 
 class _HistorySectionState extends ConsumerState<_HistorySection> {
   int _currentPage = 0;
-  int _itemsPerPage = 10;
+  int _itemsPerPage = 5;
 
   void _showClearAllDialog(BuildContext context, WidgetRef ref) {
     showDialog(
@@ -1000,6 +1000,7 @@ class _HistorySectionState extends ConsumerState<_HistorySection> {
                       },
                     ),
                     // Pagination Footer
+                    // Pagination Footer
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -1012,73 +1013,194 @@ class _HistorySectionState extends ConsumerState<_HistorySection> {
                           bottom: Radius.circular(16),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Tampilkan:',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildPageSizeButton(5, theme),
-                          const SizedBox(width: 4),
-                          _buildPageSizeButton(10, theme),
-                          const SizedBox(width: 4),
-                          _buildPageSizeButton(100, theme),
-                          const SizedBox(width: 4),
-                          _buildPageSizeButton(-1, theme, label: 'Semua'),
-                          const Spacer(),
-                          // Page info and navigation
-                          if (_itemsPerPage != -1 && totalPages > 1) ...[
-                            Text(
-                              '${startIndex + 1}-$endIndex dari $totalItems',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.onSurfaceVariant,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 500;
+
+                          if (isNarrow) {
+                            // Stack vertically on narrow screens
+                            return SizedBox(
+                              width: double.infinity,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Items per page selector
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Tampilkan:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _buildPageSizeButton(5, theme),
+                                      const SizedBox(width: 4),
+                                      _buildPageSizeButton(10, theme),
+                                      const SizedBox(width: 4),
+                                      _buildPageSizeButton(100, theme),
+                                      const SizedBox(width: 4),
+                                      _buildPageSizeButton(
+                                        -1,
+                                        theme,
+                                        label: 'Semua',
+                                      ),
+                                    ],
+                                  ),
+                                  // Page info and navigation
+                                  if (_itemsPerPage != -1 &&
+                                      totalPages > 1) ...[
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${startIndex + 1}-$endIndex dari $totalItems',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        _buildNavButton(
+                                          icon: Icons.chevron_left,
+                                          onPressed: _currentPage > 0
+                                              ? () => setState(
+                                                  () => _currentPage--,
+                                                )
+                                              : null,
+                                          theme: theme,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.primary,
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '${_currentPage + 1} / $totalPages',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        _buildNavButton(
+                                          icon: Icons.chevron_right,
+                                          onPressed:
+                                              _currentPage < totalPages - 1
+                                              ? () => setState(
+                                                  () => _currentPage++,
+                                                )
+                                              : null,
+                                          theme: theme,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Previous button
-                            _buildNavButton(
-                              icon: Icons.chevron_left,
-                              onPressed: _currentPage > 0
-                                  ? () => setState(() => _currentPage--)
-                                  : null,
-                              theme: theme,
-                            ),
-                            const SizedBox(width: 4),
-                            // Page indicator
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
+                            );
+                          }
+
+                          // Wide screen: horizontal layout
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Tampilkan:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildPageSizeButton(5, theme),
+                                  const SizedBox(width: 4),
+                                  _buildPageSizeButton(10, theme),
+                                  const SizedBox(width: 4),
+                                  _buildPageSizeButton(100, theme),
+                                  const SizedBox(width: 4),
+                                  _buildPageSizeButton(
+                                    -1,
+                                    theme,
+                                    label: 'Semua',
+                                  ),
+                                ],
                               ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '${_currentPage + 1} / $totalPages',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              // Page info and navigation
+                              if (_itemsPerPage != -1 && totalPages > 1)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${startIndex + 1}-$endIndex dari $totalItems',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _buildNavButton(
+                                      icon: Icons.chevron_left,
+                                      onPressed: _currentPage > 0
+                                          ? () => setState(() => _currentPage--)
+                                          : null,
+                                      theme: theme,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${_currentPage + 1} / $totalPages',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _buildNavButton(
+                                      icon: Icons.chevron_right,
+                                      onPressed: _currentPage < totalPages - 1
+                                          ? () => setState(() => _currentPage++)
+                                          : null,
+                                      theme: theme,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            // Next button
-                            _buildNavButton(
-                              icon: Icons.chevron_right,
-                              onPressed: _currentPage < totalPages - 1
-                                  ? () => setState(() => _currentPage++)
-                                  : null,
-                              theme: theme,
-                            ),
-                          ],
-                        ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -1233,67 +1355,85 @@ class _HistoryItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      size: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      dateFormat.format(record.importDate),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.folder_outlined,
-                      size: 12,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      record.fileSizeFormatted,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 12,
-                      color: Colors.green.shade600,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${numberFormat.format(record.recordCount)} record',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (record.errorCount > 0) ...[
-                      const SizedBox(width: 12),
-                      Icon(
-                        Icons.error_outline,
-                        size: 12,
-                        color: Colors.red.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${record.errorCount} error',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.red.shade700,
-                          fontWeight: FontWeight.w500,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateFormat.format(record.importDate),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.folder_outlined,
+                          size: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          record.fileSizeFormatted,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 12,
+                          color: Colors.green.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${numberFormat.format(record.recordCount)} record',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (record.errorCount > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 12,
+                            color: Colors.red.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${record.errorCount} error',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
                   ],
                 ),
               ],

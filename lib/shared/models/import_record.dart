@@ -53,8 +53,9 @@ class ImportRecord {
   String get fileSizeFormatted {
     if (fileSize == null) return '-';
     if (fileSize! < 1024) return '$fileSize B';
-    if (fileSize! < 1024 * 1024)
+    if (fileSize! < 1024 * 1024) {
       return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
+    }
     return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }

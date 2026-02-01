@@ -646,7 +646,7 @@ class _CustomerFilteredListSection extends ConsumerStatefulWidget {
 
 class _CustomerFilteredListSectionState
     extends ConsumerState<_CustomerFilteredListSection> {
-  int _itemsPerPage = 10; // Default: 10 items per page
+  int _itemsPerPage = 5; // Default: 5 items per page
   int _currentPage = 0;
 
   @override
@@ -880,72 +880,176 @@ class _CustomerFilteredListSectionState
                     ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    // Items per page selector
-                    Text(
-                      'Tampilkan:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildPageSizeButton(10, theme),
-                    const SizedBox(width: 4),
-                    _buildPageSizeButton(100, theme),
-                    const SizedBox(width: 4),
-                    _buildPageSizeButton(-1, theme, label: 'Semua'),
-                    const Spacer(),
-                    // Page info and navigation
-                    if (_itemsPerPage != -1 && totalPages > 1) ...[
-                      Text(
-                        '${startIndex + 1}-$endIndex dari $totalItems',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 500;
+
+                    if (isNarrow) {
+                      // Stack vertically on narrow screens
+                      return SizedBox(
+                        width: double.infinity,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Items per page selector
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Tampilkan:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildPageSizeButton(5, theme),
+                                const SizedBox(width: 4),
+                                _buildPageSizeButton(10, theme),
+                                const SizedBox(width: 4),
+                                _buildPageSizeButton(100, theme),
+                                const SizedBox(width: 4),
+                                _buildPageSizeButton(-1, theme, label: 'Semua'),
+                              ],
+                            ),
+                            // Page info and navigation
+                            if (_itemsPerPage != -1 && totalPages > 1) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${startIndex + 1}-$endIndex dari $totalItems',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _buildNavButton(
+                                    icon: Icons.chevron_left,
+                                    onPressed: _currentPage > 0
+                                        ? () => setState(() => _currentPage--)
+                                        : null,
+                                    theme: theme,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${_currentPage + 1} / $totalPages',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _buildNavButton(
+                                    icon: Icons.chevron_right,
+                                    onPressed: _currentPage < totalPages - 1
+                                        ? () => setState(() => _currentPage++)
+                                        : null,
+                                    theme: theme,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Previous button
-                      _buildNavButton(
-                        icon: Icons.chevron_left,
-                        onPressed: _currentPage > 0
-                            ? () => setState(() => _currentPage--)
-                            : null,
-                        theme: theme,
-                      ),
-                      const SizedBox(width: 4),
-                      // Page indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                      );
+                    }
+
+                    // Wide screen: horizontal layout
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Items per page selector
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Tampilkan:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildPageSizeButton(5, theme),
+                            const SizedBox(width: 4),
+                            _buildPageSizeButton(10, theme),
+                            const SizedBox(width: 4),
+                            _buildPageSizeButton(100, theme),
+                            const SizedBox(width: 4),
+                            _buildPageSizeButton(-1, theme, label: 'Semua'),
+                          ],
                         ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${_currentPage + 1} / $totalPages',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        // Page info and navigation
+                        if (_itemsPerPage != -1 && totalPages > 1)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${startIndex + 1}-$endIndex dari $totalItems',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Previous button
+                              _buildNavButton(
+                                icon: Icons.chevron_left,
+                                onPressed: _currentPage > 0
+                                    ? () => setState(() => _currentPage--)
+                                    : null,
+                                theme: theme,
+                              ),
+                              const SizedBox(width: 4),
+                              // Page indicator
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${_currentPage + 1} / $totalPages',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              // Next button
+                              _buildNavButton(
+                                icon: Icons.chevron_right,
+                                onPressed: _currentPage < totalPages - 1
+                                    ? () => setState(() => _currentPage++)
+                                    : null,
+                                theme: theme,
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      // Next button
-                      _buildNavButton(
-                        icon: Icons.chevron_right,
-                        onPressed: _currentPage < totalPages - 1
-                            ? () => setState(() => _currentPage++)
-                            : null,
-                        theme: theme,
-                      ),
-                    ],
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ],

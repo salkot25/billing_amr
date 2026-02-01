@@ -42,6 +42,20 @@ class DatabaseHelper {
     }
   }
 
+  Future<void> resetDatabase() async {
+    // Close the existing connection
+    await close();
+
+    // Get the database path and delete the file
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'billing_amr.db');
+
+    await deleteDatabase(path);
+
+    // Reinitialize the database
+    _database = await _initDB('billing_amr.db');
+  }
+
   Future<void> _createDB(Database db, int version) async {
     // Customers table
     await db.execute('''
@@ -476,7 +490,9 @@ class DatabaseHelper {
         br.peak_stand,
         br.operating_hours,
         c.nama,
-        c.alamat
+        c.alamat,
+        c.tariff as tarif,
+        c.power_capacity as daya
       FROM anomaly_flags af
       INNER JOIN billing_records br ON af.billing_record_id = br.id
       INNER JOIN customers c ON br.customer_id = c.customer_id
@@ -644,6 +660,56 @@ class DatabaseHelper {
   // Update consumption variance threshold
   Future<void> updateConsumptionVarianceThreshold(double threshold) async {
     await updateSetting('consumption_variance_threshold', threshold.toString());
+  }
+
+  // Get anomaly detection mode ('kwh' or 'rptag')
+  Future<String> getAnomalyDetectionMode() async {
+    final value = await getSetting('anomaly_detection_mode');
+    return value ?? 'kwh'; // Default to kWh-based detection
+  }
+
+  // Update anomaly detection mode
+  Future<void> updateAnomalyDetectionMode(String mode) async {
+    await updateSetting('anomaly_detection_mode', mode);
+  }
+
+  // Get average RPTAG for a customer (last 12 months)
+  Future<double> getAverageRptag(String customerId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      '''
+      SELECT AVG(rptag) as avg_rptag
+      FROM (
+        SELECT rptag
+        FROM billing_records
+        WHERE customer_id = ?
+        ORDER BY billing_period DESC
+        LIMIT 12
+      )
+    ''',
+      [customerId],
+    );
+    return (result.first['avg_rptag'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  // Get previous month RPTAG for a customer
+  Future<double?> getPreviousMonthRptag(
+    String customerId,
+    String currentPeriod,
+  ) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      '''
+      SELECT rptag
+      FROM billing_records
+      WHERE customer_id = ? AND billing_period < ?
+      ORDER BY billing_period DESC
+      LIMIT 1
+    ''',
+      [customerId, currentPeriod],
+    );
+    if (result.isEmpty) return null;
+    return (result.first['rptag'] as num?)?.toDouble();
   }
 
   // Get yearly consumption history (last 12 months from latest period)

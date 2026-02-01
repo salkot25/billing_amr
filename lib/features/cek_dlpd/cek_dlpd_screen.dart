@@ -16,6 +16,7 @@ class CekDlpdScreen extends ConsumerStatefulWidget {
 class _CekDlpdScreenState extends ConsumerState<CekDlpdScreen> {
   final TextEditingController _customerIdController = TextEditingController();
   final List<String> _customerIds = [];
+  String? _selectedPeriod; // null = Semua periode
 
   @override
   void dispose() {
@@ -23,13 +24,51 @@ class _CekDlpdScreenState extends ConsumerState<CekDlpdScreen> {
     super.dispose();
   }
 
+  // Get unique billing periods from anomalies
+  List<String> _getUniquePeriods(List<Map<String, dynamic>> anomalies) {
+    final periods = anomalies
+        .map((a) => a['billing_period'] as String?)
+        .where((p) => p != null && p.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
+    periods.sort((a, b) => b.compareTo(a)); // Descending (newest first)
+    return periods;
+  }
+
+  // Format period string for display (e.g., "202601" -> "Januari 2026")
+  String _formatPeriod(String period) {
+    if (period.length != 6) return period;
+    try {
+      final year = period.substring(0, 4);
+      final month = int.parse(period.substring(4, 6));
+      final monthNames = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      return '${monthNames[month - 1]} $year';
+    } catch (e) {
+      return period;
+    }
+  }
+
   void _addCustomerId() {
     final input = _customerIdController.text.trim();
     if (input.isEmpty) return;
 
-    // Check if input contains multiple IDs (separated by comma, semicolon, or newline)
+    // Check if input contains multiple IDs (separated by comma, semicolon, newline, tab, space, or pipe)
     final List<String> newIds = input
-        .split(RegExp(r'[,;\n]+'))
+        .split(RegExp(r'[,;\n\t\s|]+'))
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty && !_customerIds.contains(id))
         .toList();
@@ -63,231 +102,454 @@ class _CekDlpdScreenState extends ConsumerState<CekDlpdScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Input section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade200,
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Masukkan ID Pelanggan',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Masukkan satu atau beberapa ID pelanggan (pisahkan dengan koma, titik koma, atau baris baru)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _customerIdController,
-                          decoration: InputDecoration(
-                            hintText: 'Contoh: 123456789, 987654321',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 14,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.person_search_rounded,
-                              color: Colors.blue.shade400,
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                          maxLines: 3,
-                          minLines: 1,
-                          onSubmitted: (_) => _addCustomerId(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _addCustomerId,
-                        icon: const Icon(Icons.add, size: 20),
-                        label: const Text('Tambah'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          backgroundColor: Colors.blue.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_customerIds.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'ID Pelanggan yang akan dicek (${_customerIds.length})',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _clearAll,
-                          icon: const Icon(Icons.clear_all, size: 16),
-                          label: const Text('Hapus Semua'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.red.shade600,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 900;
+
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: isWide ? 32 : 16,
+              vertical: 24,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isWide ? 1200 : constraints.maxWidth,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header with Gradient
                     Container(
-                      constraints: const BoxConstraints(maxHeight: 150),
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(isWide ? 24 : 20),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
+                        gradient: LinearGradient(
+                          colors: [Colors.cyan.shade600, Colors.teal.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.teal.shade200.withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
-                      child: SingleChildScrollView(
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _customerIds.map((id) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.analytics_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.shade200),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Pengecekan DLPD',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _customerIds.isEmpty
+                                          ? 'Masukkan ID pelanggan untuk memulai'
+                                          : '${_customerIds.length} pelanggan ditambahkan',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.person,
-                                    size: 14,
-                                    color: Colors.blue.shade600,
+                              if (_customerIds.isNotEmpty) ...[
+                                // Period Dropdown
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final anomaliesAsync = ref.watch(
+                                      anomaliesProvider,
+                                    );
+                                    return anomaliesAsync.maybeWhen(
+                                      data: (anomalies) {
+                                        // Filter anomalies for current customer IDs
+                                        final relevantAnomalies = anomalies
+                                            .where(
+                                              (a) => _customerIds.contains(
+                                                a['customer_id'],
+                                              ),
+                                            )
+                                            .toList();
+                                        final periods = _getUniquePeriods(
+                                          relevantAnomalies,
+                                        );
+                                        if (periods.isEmpty) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String?>(
+                                              value: _selectedPeriod,
+                                              icon: Icon(
+                                                Icons
+                                                    .keyboard_arrow_down_rounded,
+                                                color: Colors.teal.shade600,
+                                                size: 20,
+                                              ),
+                                              isDense: true,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.teal.shade700,
+                                              ),
+                                              items: [
+                                                const DropdownMenuItem<String?>(
+                                                  value: null,
+                                                  child: Text('Semua Periode'),
+                                                ),
+                                                ...periods.map(
+                                                  (period) =>
+                                                      DropdownMenuItem<String>(
+                                                        value: period,
+                                                        child: Text(
+                                                          _formatPeriod(period),
+                                                        ),
+                                                      ),
+                                                ),
+                                              ],
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _selectedPeriod = value;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      orElse: () => const SizedBox.shrink(),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    id,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.people_rounded,
+                                        color: Colors.teal.shade700,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${_customerIds.length}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.teal.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          // Input Field inside header
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _customerIdController,
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Masukkan ID Pelanggan (pisahkan dengan koma, spasi, atau enter)',
+                                      hintStyle: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 14,
+                                      ),
+                                      prefixIcon: Icon(
+                                        Icons.person_search_rounded,
+                                        color: Colors.teal.shade400,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                    ),
+                                    onSubmitted: (_) => _addCustomerId(),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ElevatedButton(
+                                    onPressed: _addCustomerId,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.teal.shade600,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add, size: 18),
+                                        SizedBox(width: 6),
+                                        Text('Tambah'),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  InkWell(
-                                    onTap: () => _removeCustomerId(id),
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 14,
-                                        color: Colors.red.shade400,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Customer IDs chips inside header
+                          if (_customerIds.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'ID Pelanggan yang akan dicek',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: _clearAll,
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade400,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.clear_all,
+                                                size: 14,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Hapus Semua',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 100,
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: _customerIds.map((id) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  id,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.teal.shade700,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                InkWell(
+                                                  onTap: () =>
+                                                      _removeCustomerId(id),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  child: Icon(
+                                                    Icons.close,
+                                                    size: 14,
+                                                    color: Colors.red.shade400,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                            );
-                          }).toList(),
-                        ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+
+                    // Results section
+                    if (_customerIds.isEmpty)
+                      _buildEmptyState()
+                    else
+                      ..._customerIds.map(
+                        (customerId) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _CustomerDlpdCard(
+                            customerId: customerId,
+                            selectedPeriod: _selectedPeriod,
+                          ),
+                        ),
+                      ),
                   ],
-                ],
+                ),
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
 
-            // Results section
-            if (_customerIds.isEmpty)
-              SizedBox(
-                height: 400,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.search_off,
-                          size: 64,
-                          color: Colors.blue.shade300,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Belum ada ID pelanggan',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Masukkan ID pelanggan di atas untuk memulai pengecekan DLPD',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: List.generate(_customerIds.length, (index) {
-                    final customerId = _customerIds[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _CustomerDlpdCard(customerId: customerId),
-                    );
-                  }),
-                ),
+  Widget _buildEmptyState() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50,
+                shape: BoxShape.circle,
               ),
+              child: Icon(
+                Icons.person_search_rounded,
+                size: 48,
+                color: Colors.teal.shade300,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Belum ada ID pelanggan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Masukkan ID pelanggan di atas untuk memulai\npengecekan DLPD (Daftar Langganan Pemakaian Daya)',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -297,8 +559,9 @@ class _CekDlpdScreenState extends ConsumerState<CekDlpdScreen> {
 
 class _CustomerDlpdCard extends ConsumerStatefulWidget {
   final String customerId;
+  final String? selectedPeriod;
 
-  const _CustomerDlpdCard({required this.customerId});
+  const _CustomerDlpdCard({required this.customerId, this.selectedPeriod});
 
   @override
   ConsumerState<_CustomerDlpdCard> createState() => _CustomerDlpdCardState();
@@ -310,37 +573,54 @@ class _CustomerDlpdCardState extends ConsumerState<_CustomerDlpdCard> {
   @override
   Widget build(BuildContext context) {
     final customerAsync = ref.watch(customerByIdProvider(widget.customerId));
+    final anomaliesAsync = ref.watch(anomaliesProvider);
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: [
-          // Header - Clickable
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
+    return customerAsync.when(
+      data: (customer) {
+        if (customer == null) {
+          return _buildNotFoundCard();
+        }
+
+        // Get anomalies for this customer (filtered by period if selected)
+        final customerAnomalies = anomaliesAsync.maybeWhen(
+          data: (anomalies) {
+            var filtered = anomalies.where(
+              (a) => a['customer_id'] == widget.customerId,
+            );
+            // Apply period filter if selected
+            if (widget.selectedPeriod != null) {
+              filtered = filtered.where(
+                (a) => a['billing_period'] == widget.selectedPeriod,
+              );
+            }
+            return filtered.toList();
+          },
+          orElse: () => <Map<String, dynamic>>[],
+        );
+
+        final hasAnomalies = customerAnomalies.isNotEmpty;
+        final anomalyCount = customerAnomalies.length;
+
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: hasAnomalies
+                  ? Colors.orange.shade300
+                  : Colors.grey.shade200,
+              width: hasAnomalies ? 2 : 1,
             ),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: _isExpanded
-                    ? LinearGradient(
-                        colors: [Colors.blue.shade700, Colors.blue.shade500],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : LinearGradient(
-                        colors: [Colors.grey.shade600, Colors.grey.shade500],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+          ),
+          child: Column(
+            children: [
+              // Header - Clickable
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -351,181 +631,538 @@ class _CustomerDlpdCardState extends ConsumerState<_CustomerDlpdCard> {
                       ? Radius.zero
                       : const Radius.circular(16),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: customerAsync.when(
-                      data: (customer) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            customer?.nama ?? 'Pelanggan Tidak Ditemukan',
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Avatar with tariff
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: hasAnomalies
+                                ? [
+                                    Colors.orange.shade400,
+                                    Colors.orange.shade600,
+                                  ]
+                                : [Colors.teal.shade400, Colors.teal.shade600],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            customer.tariff.isNotEmpty
+                                ? customer.tariff
+                                : customer.nama.isNotEmpty
+                                ? customer.nama.substring(0, 1).toUpperCase()
+                                : '?',
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
                               color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'ID: ${widget.customerId}',
-                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      loading: () => const Text(
-                        'Memuat...',
-                        style: TextStyle(color: Colors.white),
+                      const SizedBox(width: 12),
+                      // Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Customer ID + Name
+                            Row(
+                              children: [
+                                Text(
+                                  widget.customerId,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    customer.nama,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            // Tariff / Daya badges
+                            Row(
+                              children: [
+                                if (customer.tariff.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      customer.tariff,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                if (customer.powerCapacity > 0) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '${NumberFormat('#,###', 'id_ID').format(customer.powerCapacity)} VA',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                // Anomaly badge
+                                if (hasAnomalies) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 10,
+                                          color: Colors.orange.shade700,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          '$anomalyCount Anomali',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            // Show anomaly descriptions if any
+                            if (hasAnomalies && !_isExpanded) ...[
+                              const SizedBox(height: 6),
+                              ...customerAnomalies.take(2).map((anomaly) {
+                                final description =
+                                    anomaly['description'] as String? ?? '';
+                                final billingPeriod =
+                                    anomaly['billing_period'] as String? ?? '';
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_month_outlined,
+                                        size: 10,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        billingPeriod,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          description,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.orange.shade700,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              if (anomalyCount > 2)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    '+${anomalyCount - 2} anomali lainnya',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade500,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
                       ),
-                      error: (_, stack) => Text(
-                        'ID: ${widget.customerId}',
-                        style: const TextStyle(color: Colors.white),
+                      const SizedBox(width: 8),
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.grey.shade400,
+                        size: 24,
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Content - Collapsible
+              if (_isExpanded)
+                _buildExpandedContent(customer, customerAnomalies),
+            ],
+          ),
+        );
+      },
+      loading: () => _buildLoadingCard(),
+      error: (error, stack) => _buildErrorCard(error),
+    );
+  }
+
+  Widget _buildNotFoundCard() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.red.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.person_off_outlined,
+                color: Colors.red.shade400,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.customerId,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontFamily: 'monospace',
                     ),
                   ),
-                  Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white,
-                    size: 28,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pelanggan tidak ditemukan',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.red.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Content - Collapsible
-          if (_isExpanded)
-            customerAsync.when(
-              data: (customer) {
-                if (customer == null) {
-                  return Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.person_off_outlined,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Pelanggan tidak ditemukan',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                final recordsAsync = ref.watch(
-                  billingRecordsProvider(widget.customerId),
-                );
-                return recordsAsync.when(
-                  data: (records) {
-                    if (records.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.timeline_outlined,
-                              size: 48,
-                              color: Colors.blue.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Belum ada data pemakaian',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return _DlpdAnalysisContent(
-                      records: records,
-                      customer: customer,
-                    );
-                  },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  ),
-                  error: (error, stack) => Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red.shade300,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Error: $error',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              loading: () => const Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
+  Widget _buildLoadingCard() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
               ),
-              error: (error, stack) => Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red.shade300,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Error: $error',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.customerId,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Memuat data...',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(Object error) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.red.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.error_outline,
+                color: Colors.red.shade400,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.customerId,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Error: $error',
+                    style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent(
+    Customer customer,
+    List<Map<String, dynamic>> anomalies,
+  ) {
+    final recordsAsync = ref.watch(billingRecordsProvider(widget.customerId));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Anomaly list if any
+          if (anomalies.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange.shade700,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Anomali Terdeteksi (${anomalies.length})',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...anomalies.map((anomaly) {
+                    final description = anomaly['description'] as String? ?? '';
+                    final billingPeriod =
+                        anomaly['billing_period'] as String? ?? '';
+                    final type = anomaly['type'] as String? ?? '';
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              billingPeriod,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              description,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange.shade800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+
+          // DLPD Analysis Content
+          recordsAsync.when(
+            data: (records) {
+              if (records.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.timeline_outlined,
+                        size: 40,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Belum ada data pemakaian',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return _DlpdAnalysisContent(records: records, customer: customer);
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Error: $error',
+                style: TextStyle(color: Colors.red.shade600, fontSize: 12),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -605,38 +1242,67 @@ class _DlpdAnalysisContentState extends State<_DlpdAnalysisContent> {
     final sortedRecords = [...widget.records]
       ..sort((a, b) => b.billingPeriod.compareTo(a.billingPeriod));
 
-    // Calculate statistics
-    String monthCompare = '-';
-    String threeMonthAvg = '-';
-    Color monthColor = Colors.grey;
-    IconData monthIcon = Icons.remove;
+    // Calculate kWh statistics
+    String kwhMonthCompare = '-';
+    String kwhThreeMonthAvg = '-';
+    Color kwhMonthColor = Colors.grey;
+    IconData kwhMonthIcon = Icons.remove;
+    Color kwhAvgColor = Colors.blue.shade700;
+    IconData kwhAvgIcon = Icons.analytics_outlined;
+
+    // Calculate RPTAG statistics
+    String rptagMonthCompare = '-';
+    String rptagThreeMonthAvg = '-';
+    Color rptagMonthColor = Colors.grey;
+    IconData rptagMonthIcon = Icons.remove;
+    Color rptagAvgColor = Colors.blue.shade700;
+    IconData rptagAvgIcon = Icons.analytics_outlined;
 
     if (sortedRecords.length >= 2) {
-      final latest =
+      // kWh comparison
+      final latestKwh =
           sortedRecords[0].offPeakConsumption +
           sortedRecords[0].peakConsumption;
-      final previous =
+      final previousKwh =
           sortedRecords[1].offPeakConsumption +
           sortedRecords[1].peakConsumption;
 
-      if (previous > 0) {
-        final percentChange = ((latest - previous) / previous) * 100;
-        monthCompare =
+      if (previousKwh > 0) {
+        final percentChange = ((latestKwh - previousKwh) / previousKwh) * 100;
+        kwhMonthCompare =
             '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
-        monthColor = percentChange >= 0
+        kwhMonthColor = percentChange >= 0
             ? Colors.red.shade600
             : Colors.green.shade600;
-        monthIcon = percentChange >= 0
+        kwhMonthIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
+      }
+
+      // RPTAG comparison
+      final latestRptag = sortedRecords[0].rptag;
+      final previousRptag = sortedRecords[1].rptag;
+
+      if (previousRptag > 0) {
+        final percentChange =
+            ((latestRptag - previousRptag) / previousRptag) * 100;
+        rptagMonthCompare =
+            '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        rptagMonthColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        rptagMonthIcon = percentChange >= 0
             ? Icons.trending_up
             : Icons.trending_down;
       }
     }
 
     if (sortedRecords.length >= 4) {
-      final latest =
+      // kWh 3-month average
+      final latestKwh =
           sortedRecords[0].offPeakConsumption +
           sortedRecords[0].peakConsumption;
-      final avg3Month =
+      final avg3MonthKwh =
           (sortedRecords[1].offPeakConsumption +
               sortedRecords[1].peakConsumption +
               sortedRecords[2].offPeakConsumption +
@@ -645,10 +1311,37 @@ class _DlpdAnalysisContentState extends State<_DlpdAnalysisContent> {
               sortedRecords[3].peakConsumption) /
           3;
 
-      if (avg3Month > 0) {
-        final percentChange = ((latest - avg3Month) / avg3Month) * 100;
-        threeMonthAvg =
+      if (avg3MonthKwh > 0) {
+        final percentChange = ((latestKwh - avg3MonthKwh) / avg3MonthKwh) * 100;
+        kwhThreeMonthAvg =
             '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        kwhAvgColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        kwhAvgIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
+      }
+
+      // RPTAG 3-month average
+      final latestRptag = sortedRecords[0].rptag;
+      final avg3MonthRptag =
+          (sortedRecords[1].rptag +
+              sortedRecords[2].rptag +
+              sortedRecords[3].rptag) /
+          3;
+
+      if (avg3MonthRptag > 0) {
+        final percentChange =
+            ((latestRptag - avg3MonthRptag) / avg3MonthRptag) * 100;
+        rptagThreeMonthAvg =
+            '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        rptagAvgColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        rptagAvgIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
       }
     }
 
@@ -659,146 +1352,415 @@ class _DlpdAnalysisContentState extends State<_DlpdAnalysisContent> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Detail Pelanggan Section
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'DETAIL PELANGGAN',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 500;
+
+          if (isNarrow) {
+            // Portrait/Mobile: Stack vertically
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Detail Pelanggan Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'DETAIL PELANGGAN',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(thickness: 1, height: 1),
+                    const SizedBox(height: 12),
+                    _buildDetailRow('ID Pelanggan', customer.customerId),
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Nama', customer.nama),
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Alamat', customer.alamat),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(
+                      'Tarif / Daya',
+                      '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(thickness: 1, height: 1),
+                const SizedBox(height: 16),
+                // Statistics Section - kWh and RPTAG
+                _buildStatisticsSection(
+                  kwhMonthIcon: kwhMonthIcon,
+                  kwhMonthColor: kwhMonthColor,
+                  kwhMonthCompare: kwhMonthCompare,
+                  rptagMonthIcon: rptagMonthIcon,
+                  rptagMonthColor: rptagMonthColor,
+                  rptagMonthCompare: rptagMonthCompare,
+                  kwhAvgIcon: kwhAvgIcon,
+                  kwhAvgColor: kwhAvgColor,
+                  kwhThreeMonthAvg: kwhThreeMonthAvg,
+                  rptagAvgIcon: rptagAvgIcon,
+                  rptagAvgColor: rptagAvgColor,
+                  rptagThreeMonthAvg: rptagThreeMonthAvg,
+                ),
+              ],
+            );
+          }
+
+          // Landscape/Wide: Side by side
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Detail Pelanggan Section
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DETAIL PELANGGAN',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(thickness: 1, height: 1),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('ID Pelanggan', customer.customerId),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Nama', customer.nama),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Alamat', customer.alamat),
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        'Tarif / Daya',
+                        '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  const Divider(thickness: 1, height: 1),
-                  const SizedBox(height: 12),
-                  _buildDetailRow('ID Pelanggan', customer.customerId),
-                  const SizedBox(height: 8),
-                  _buildDetailRow('Nama', customer.nama),
-                  const SizedBox(height: 8),
-                  _buildDetailRow('Alamat', customer.alamat),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    'Tarif / Daya',
-                    '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                ),
+                const SizedBox(width: 16),
+                // Statistics Section - kWh and RPTAG
+                Expanded(
+                  flex: 2,
+                  child: _buildStatisticsSection(
+                    kwhMonthIcon: kwhMonthIcon,
+                    kwhMonthColor: kwhMonthColor,
+                    kwhMonthCompare: kwhMonthCompare,
+                    rptagMonthIcon: rptagMonthIcon,
+                    rptagMonthColor: rptagMonthColor,
+                    rptagMonthCompare: rptagMonthCompare,
+                    kwhAvgIcon: kwhAvgIcon,
+                    kwhAvgColor: kwhAvgColor,
+                    kwhThreeMonthAvg: kwhThreeMonthAvg,
+                    rptagAvgIcon: rptagAvgIcon,
+                    rptagAvgColor: rptagAvgColor,
+                    rptagThreeMonthAvg: rptagThreeMonthAvg,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            // Statistics Section
-            Expanded(
-              flex: 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'vs Bulan Lalu',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(monthIcon, size: 16, color: monthColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              monthCompare,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: monthColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.show_chart,
-                              size: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'vs Avg 3 Bulan',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.analytics_outlined,
-                              size: 16,
-                              color: Colors.blue.shade600,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              threeMonthAvg,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildStatisticsSection({
+    required IconData kwhMonthIcon,
+    required Color kwhMonthColor,
+    required String kwhMonthCompare,
+    required IconData rptagMonthIcon,
+    required Color rptagMonthColor,
+    required String rptagMonthCompare,
+    required IconData kwhAvgIcon,
+    required Color kwhAvgColor,
+    required String kwhThreeMonthAvg,
+    required IconData rptagAvgIcon,
+    required Color rptagAvgColor,
+    required String rptagThreeMonthAvg,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // vs Bulan Lalu - kWh and RPTAG
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'vs Bulan Lalu',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // kWh comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'kWh',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  kwhMonthIcon,
+                                  size: 14,
+                                  color: kwhMonthColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  kwhMonthCompare,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: kwhMonthColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // RPTAG comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'RPTAG',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  rptagMonthIcon,
+                                  size: 14,
+                                  color: rptagMonthColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  rptagMonthCompare,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: rptagMonthColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // vs Avg 3 Bulan - kWh and RPTAG
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.show_chart, size: 13, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    'vs Avg 3 Bulan',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // kWh comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'kWh',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(kwhAvgIcon, size: 14, color: kwhAvgColor),
+                                const SizedBox(width: 3),
+                                Text(
+                                  kwhThreeMonthAvg,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: kwhAvgColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // RPTAG comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'RPTAG',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  rptagAvgIcon,
+                                  size: 14,
+                                  color: rptagAvgColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  rptagThreeMonthAvg,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: rptagAvgColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -21,6 +21,7 @@ class _AnomalyStatisticsScreenState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   AnomalyType? _selectedType;
+  String? _selectedPeriod; // null = Semua periode
 
   @override
   void dispose() {
@@ -28,10 +29,56 @@ class _AnomalyStatisticsScreenState
     super.dispose();
   }
 
+  // Get unique billing periods from anomalies
+  List<String> _getUniquePeriods(List<Map<String, dynamic>> anomalies) {
+    final periods = anomalies
+        .map((a) => a['billing_period'] as String?)
+        .where((p) => p != null && p.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
+    periods.sort((a, b) => b.compareTo(a)); // Descending (newest first)
+    return periods;
+  }
+
+  // Format period string for display (e.g., "202601" -> "Januari 2026")
+  String _formatPeriod(String period) {
+    if (period.length != 6) return period;
+    try {
+      final year = period.substring(0, 4);
+      final month = int.parse(period.substring(4, 6));
+      final monthNames = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      return '${monthNames[month - 1]} $year';
+    } catch (e) {
+      return period;
+    }
+  }
+
   List<Map<String, dynamic>> _filterAnomalies(
     List<Map<String, dynamic>> anomalies,
   ) {
     return anomalies.where((anomaly) {
+      // Period filter
+      if (_selectedPeriod != null) {
+        final billingPeriod = anomaly['billing_period'] as String? ?? '';
+        if (billingPeriod != _selectedPeriod) {
+          return false;
+        }
+      }
+
       // Search filter
       final customerName = anomaly['customer_name'] as String? ?? '';
       final customerId = anomaly['customer_id'] as String? ?? '';
@@ -58,183 +105,346 @@ class _AnomalyStatisticsScreenState
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
-      body: ref
-          .watch(anomaliesProvider)
-          .when(
-            data: (anomalies) {
-              final filteredAnomalies = _filterAnomalies(anomalies);
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 900;
 
-              if (anomalies.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.check_circle_outline,
-                          size: 64,
-                          color: Colors.green.shade400,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Tidak ada anomali terdeteksi',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Semua data billing dalam kondisi normal',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
+          return ref
+              .watch(anomaliesProvider)
+              .when(
+                data: (anomalies) {
+                  final filteredAnomalies = _filterAnomalies(anomalies);
 
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    // Search and filter bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.shade200,
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                  if (anomalies.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              shape: BoxShape.circle,
                             ),
-                          ],
+                            child: Icon(
+                              Icons.check_circle_outline,
+                              size: 64,
+                              color: Colors.green.shade400,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Tidak ada anomali terdeteksi',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Semua data billing dalam kondisi normal',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isWide ? 32 : 16,
+                      vertical: 24,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: isWide ? 1200 : constraints.maxWidth,
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText:
-                                    'Cari pelanggan, ID, atau deskripsi anomali...',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey.shade400,
-                                  fontSize: 14,
+                            // Header with Gradient - Consistent with Data Pelanggan
+                            Container(
+                              padding: EdgeInsets.all(isWide ? 24 : 20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade600,
+                                    Colors.orange.shade700,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                prefixIcon: Icon(
-                                  Icons.search_rounded,
-                                  color: Colors.blue.shade400,
-                                ),
-                                suffixIcon: _searchQuery.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          setState(() {
-                                            _searchQuery = '';
-                                          });
-                                        },
-                                      )
-                                    : null,
-                                filled: true,
-                                fillColor: Colors.grey.shade50,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.orange.shade200.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
                               ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _searchQuery = value;
-                                });
-                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: Colors.white,
+                                          size: 28,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Deteksi Anomali',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${anomalies.length} anomali terdeteksi',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.9,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Period Dropdown
+                                      Builder(
+                                        builder: (context) {
+                                          final periods = _getUniquePeriods(
+                                            anomalies,
+                                          );
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.1),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String?>(
+                                                value: _selectedPeriod,
+                                                icon: Icon(
+                                                  Icons
+                                                      .keyboard_arrow_down_rounded,
+                                                  color: Colors.orange.shade600,
+                                                  size: 20,
+                                                ),
+                                                isDense: true,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.orange.shade700,
+                                                ),
+                                                items: [
+                                                  const DropdownMenuItem<
+                                                    String?
+                                                  >(
+                                                    value: null,
+                                                    child: Text(
+                                                      'Semua Periode',
+                                                    ),
+                                                  ),
+                                                  ...periods.map(
+                                                    (period) =>
+                                                        DropdownMenuItem<
+                                                          String
+                                                        >(
+                                                          value: period,
+                                                          child: Text(
+                                                            _formatPeriod(
+                                                              period,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                  ),
+                                                ],
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    _selectedPeriod = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // Search Bar - Inside Header
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: TextField(
+                                      controller: _searchController,
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            'Cari pelanggan, ID, atau deskripsi anomali...',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey.shade500,
+                                          fontSize: 14,
+                                        ),
+                                        prefixIcon: Icon(
+                                          Icons.search,
+                                          color: Colors.orange.shade400,
+                                        ),
+                                        suffixIcon: _searchQuery.isNotEmpty
+                                            ? IconButton(
+                                                icon: Icon(
+                                                  Icons.clear,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                                onPressed: () {
+                                                  _searchController.clear();
+                                                  setState(() {
+                                                    _searchQuery = '';
+                                                  });
+                                                },
+                                              )
+                                            : null,
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 14,
+                                            ),
+                                      ),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _searchQuery = value;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(height: 24),
+
+                            // Summary cards
+                            if (filteredAnomalies.isNotEmpty) ...[
+                              // Type count cards in grid
+                              _AnomalyTypeCountCards(
+                                anomalies: filteredAnomalies,
+                                selectedType: _selectedType,
+                                onTypeSelected: (type) {
+                                  setState(() {
+                                    _selectedType = type;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Type-based detailed breakdown
+                              if (_selectedType != null)
+                                _AnomalyTypeBreakdownTabbed(
+                                  anomalies: filteredAnomalies,
+                                  selectedType: _selectedType!,
+                                ),
+                              const SizedBox(height: 24),
+                            ] else
+                              _buildEmptyFilterState(),
                           ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // Summary cards
-                    if (filteredAnomalies.isNotEmpty) ...[
-                      // Type count cards in grid
-                      _AnomalyTypeCountCards(
-                        anomalies: filteredAnomalies,
-                        selectedType: _selectedType,
-                        onTypeSelected: (type) {
-                          setState(() {
-                            _selectedType = type;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Type-based detailed breakdown (replaces both breakdown & detail sections)
-                      if (_selectedType != null)
-                        _AnomalyTypeBreakdownTabbed(
-                          anomalies: filteredAnomalies,
-                          selectedType: _selectedType!,
-                        ),
-                      const SizedBox(height: 24),
-                    ] else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 48,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.filter_list_off,
-                                size: 56,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Tidak ada anomali yang sesuai dengan filter',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => Center(child: Text('Error: $error')),
               );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(child: Text('Error: $error')),
-          ),
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyFilterState() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(
+            context,
+          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.filter_list_off, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'Tidak ada anomali yang sesuai dengan filter',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Coba ubah kata kunci pencarian',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -304,60 +514,55 @@ class _AnomalyTypeCountCards extends ConsumerWidget {
       orElse: () => 720.0,
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 800;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
 
-          final cards = allTypes.map((type) {
-            final count = typeMap[type.name] ?? 0;
-            final percentage = totalUniqueCustomers == 0
-                ? 0.0
-                : (count / totalUniqueCustomers) * 100;
+        final cards = allTypes.map((type) {
+          final count = typeMap[type.name] ?? 0;
+          final percentage = totalUniqueCustomers == 0
+              ? 0.0
+              : (count / totalUniqueCustomers) * 100;
 
-            return Expanded(
-              child: _AnomalyTypeSimpleCard(
-                type: type,
-                count: count,
-                percentage: percentage,
-                isSelected: selectedType == type,
-                onTap: () => onTypeSelected(type),
-                threshold: type == AnomalyType.excessiveHours
-                    ? threshold
-                    : null,
+          return Expanded(
+            child: _AnomalyTypeSimpleCard(
+              type: type,
+              count: count,
+              percentage: percentage,
+              isSelected: selectedType == type,
+              onTap: () => onTypeSelected(type),
+              threshold: type == AnomalyType.excessiveHours ? threshold : null,
+            ),
+          );
+        }).toList();
+
+        if (isWide) {
+          // Wide screen: single row
+          return Row(
+            children: _intersperse(cards, const SizedBox(width: 12)).toList(),
+          );
+        } else {
+          // Narrow screen: 2 rows
+          final half = (cards.length / 2).ceil();
+          return Column(
+            children: [
+              Row(
+                children: _intersperse(
+                  cards.take(half).toList(),
+                  const SizedBox(width: 12),
+                ).toList(),
               ),
-            );
-          }).toList();
-
-          if (isWide) {
-            // Wide screen: single row
-            return Row(
-              children: _intersperse(cards, const SizedBox(width: 12)).toList(),
-            );
-          } else {
-            // Narrow screen: 2 rows
-            final half = (cards.length / 2).ceil();
-            return Column(
-              children: [
-                Row(
-                  children: _intersperse(
-                    cards.take(half).toList(),
-                    const SizedBox(width: 12),
-                  ).toList(),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: _intersperse(
-                    cards.skip(half).toList(),
-                    const SizedBox(width: 12),
-                  ).toList(),
-                ),
-              ],
-            );
-          }
-        },
-      ),
+              const SizedBox(height: 12),
+              Row(
+                children: _intersperse(
+                  cards.skip(half).toList(),
+                  const SizedBox(width: 12),
+                ).toList(),
+              ),
+            ],
+          );
+        }
+      },
     );
   }
 }
@@ -528,6 +733,19 @@ class _AnomalyTypeBreakdownTabbedState
     extends State<_AnomalyTypeBreakdownTabbed> {
   String _sortBy = 'customer'; // 'customer', 'period', 'value'
   bool _sortAscending = true;
+  int _currentPage = 0;
+  int _itemsPerPage = 5;
+
+  @override
+  void didUpdateWidget(covariant _AnomalyTypeBreakdownTabbed oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset page when type changes
+    if (oldWidget.selectedType != widget.selectedType) {
+      setState(() {
+        _currentPage = 0;
+      });
+    }
+  }
 
   // Extract numeric value from description
   double _extractValue(Map<String, dynamic> anomaly) {
@@ -672,104 +890,17 @@ class _AnomalyTypeBreakdownTabbedState
       typeMap[type]!.add(anomaly);
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Content for selected type
-          Builder(
-            builder: (context) {
-              var items = typeMap[widget.selectedType] ?? [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Content for selected type
+        Builder(
+          builder: (context) {
+            var items = typeMap[widget.selectedType] ?? [];
 
-              if (items.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(48),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.shade100,
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 56,
-                          color: Colors.grey.shade300,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Tidak ada anomali untuk jenis ini',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              // Sort items
-              items = List.from(items);
-
-              // Group by customer_id and keep only the latest period per customer
-              final customerMap = <String, Map<String, dynamic>>{};
-              for (final item in items) {
-                final customerId = item['customer_id'] as String? ?? '';
-                final existingItem = customerMap[customerId];
-
-                if (existingItem == null) {
-                  customerMap[customerId] = item;
-                } else {
-                  // Keep the one with latest billing period
-                  final existingPeriod =
-                      existingItem['billing_period'] as String? ?? '';
-                  final currentPeriod = item['billing_period'] as String? ?? '';
-                  if (currentPeriod.compareTo(existingPeriod) > 0) {
-                    customerMap[customerId] = item;
-                  }
-                }
-              }
-              items = customerMap.values.toList();
-
-              if (_sortBy == 'customer') {
-                items.sort((a, b) {
-                  final nameA = (a['nama'] as String? ?? '').toLowerCase();
-                  final nameB = (b['nama'] as String? ?? '').toLowerCase();
-                  return _sortAscending
-                      ? nameA.compareTo(nameB)
-                      : nameB.compareTo(nameA);
-                });
-              } else if (_sortBy == 'period') {
-                items.sort((a, b) {
-                  final periodA = a['billing_period'] as String? ?? '';
-                  final periodB = b['billing_period'] as String? ?? '';
-                  return _sortAscending
-                      ? periodA.compareTo(periodB)
-                      : periodB.compareTo(periodA);
-                });
-              } else if (_sortBy == 'value') {
-                items.sort((a, b) {
-                  final valueA = _extractValue(a);
-                  final valueB = _extractValue(b);
-                  return _sortAscending
-                      ? valueA.compareTo(valueB)
-                      : valueB.compareTo(valueA);
-                });
-              }
-
+            if (items.isEmpty) {
               return Container(
+                padding: const EdgeInsets.all(48),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -782,187 +913,747 @@ class _AnomalyTypeBreakdownTabbedState
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with title and sort controls
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 56,
+                        color: Colors.grey.shade300,
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade200),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tidak ada anomali untuk jenis ini',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Check if we have enough space for horizontal layout
-                          final isWideScreen = constraints.maxWidth > 600;
+                    ],
+                  ),
+                ),
+              );
+            }
 
-                          if (isWideScreen) {
-                            // Wide screen: single row layout
-                            return Row(
-                              children: [
-                                // Left side: Detail Analisis
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.analytics_outlined,
-                                    size: 20,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Detail Analisis',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const Spacer(),
-                                // Right side: Sort controls
-                                ..._buildSortControls(),
-                              ],
-                            );
-                          } else {
-                            // Narrow screen: stacked layout
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Title row
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.shade50,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.analytics_outlined,
-                                        size: 18,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'Detail Analisis',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // Sort controls row
-                                Row(children: _buildSortControls()),
-                              ],
-                            );
-                          }
-                        },
+            // Sort items
+            items = List.from(items);
+
+            // Group by customer_id and keep only the latest period per customer
+            final customerMap = <String, Map<String, dynamic>>{};
+            for (final item in items) {
+              final customerId = item['customer_id'] as String? ?? '';
+              final existingItem = customerMap[customerId];
+
+              if (existingItem == null) {
+                customerMap[customerId] = item;
+              } else {
+                // Keep the one with latest billing period
+                final existingPeriod =
+                    existingItem['billing_period'] as String? ?? '';
+                final currentPeriod = item['billing_period'] as String? ?? '';
+                if (currentPeriod.compareTo(existingPeriod) > 0) {
+                  customerMap[customerId] = item;
+                }
+              }
+            }
+            items = customerMap.values.toList();
+
+            if (_sortBy == 'customer') {
+              items.sort((a, b) {
+                final nameA = (a['nama'] as String? ?? '').toLowerCase();
+                final nameB = (b['nama'] as String? ?? '').toLowerCase();
+                return _sortAscending
+                    ? nameA.compareTo(nameB)
+                    : nameB.compareTo(nameA);
+              });
+            } else if (_sortBy == 'period') {
+              items.sort((a, b) {
+                final periodA = a['billing_period'] as String? ?? '';
+                final periodB = b['billing_period'] as String? ?? '';
+                return _sortAscending
+                    ? periodA.compareTo(periodB)
+                    : periodB.compareTo(periodA);
+              });
+            } else if (_sortBy == 'value') {
+              items.sort((a, b) {
+                final valueA = _extractValue(a);
+                final valueB = _extractValue(b);
+                return _sortAscending
+                    ? valueA.compareTo(valueB)
+                    : valueB.compareTo(valueA);
+              });
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade100,
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with title and sort controls
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
                       ),
                     ),
-                    // Detail list
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: SizedBox(
-                        height: 500,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: items.length,
-                          separatorBuilder: (context, index) =>
-                              Divider(color: Colors.grey.shade200),
-                          itemBuilder: (context, index) {
-                            final anomaly = items[index];
-                            final customerName =
-                                anomaly['nama'] as String? ?? 'Unknown';
-                            final customerId =
-                                anomaly['customer_id'] as String? ?? '';
-                            final description =
-                                anomaly['description'] as String? ?? '';
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Check if we have enough space for horizontal layout
+                        final isWideScreen = constraints.maxWidth > 600;
 
-                            return InkWell(
-                              onTap: () {
-                                _showCustomerHistoryDialog(
-                                  context,
-                                  customerId,
-                                  customerName,
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
+                        if (isWideScreen) {
+                          // Wide screen: single row layout
+                          return Row(
+                            children: [
+                              // Left side: Detail Analisis
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                                child: Icon(
+                                  Icons.analytics_outlined,
+                                  size: 20,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Detail Analisis',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const Spacer(),
+                              // Right side: Sort controls
+                              ..._buildSortControls(),
+                            ],
+                          );
+                        } else {
+                          // Narrow screen: stacked layout
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Title row
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.analytics_outlined,
+                                      size: 18,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Detail Analisis',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Sort controls row
+                              Row(children: _buildSortControls()),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  // Detail list with pagination
+                  Builder(
+                    builder: (context) {
+                      final theme = Theme.of(context);
+                      // Calculate pagination
+                      final totalItems = items.length;
+                      final totalPages = _itemsPerPage == -1
+                          ? 1
+                          : (totalItems / _itemsPerPage).ceil();
+                      final startIndex = _itemsPerPage == -1
+                          ? 0
+                          : _currentPage * _itemsPerPage;
+                      final endIndex = _itemsPerPage == -1
+                          ? totalItems
+                          : (startIndex + _itemsPerPage).clamp(0, totalItems);
+                      final paginatedItems = items.sublist(
+                        startIndex,
+                        endIndex,
+                      );
+
+                      return Column(
+                        children: [
+                          // List
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            itemCount: paginatedItems.length,
+                            separatorBuilder: (context, index) =>
+                                Divider(color: Colors.grey.shade200),
+                            itemBuilder: (context, index) {
+                              final anomaly = paginatedItems[index];
+                              final customerName =
+                                  anomaly['nama'] as String? ?? 'Unknown';
+                              final customerId =
+                                  anomaly['customer_id'] as String? ?? '';
+                              final description =
+                                  anomaly['description'] as String? ?? '';
+                              final billingPeriod =
+                                  anomaly['billing_period'] as String? ?? '';
+                              final tariff = anomaly['tarif'] as String? ?? '';
+                              final daya = anomaly['daya'] as int? ?? 0;
+
+                              // Get type color
+                              Color typeColor;
+                              switch (widget.selectedType) {
+                                case AnomalyType.standMundur:
+                                  typeColor = Colors.teal;
+                                case AnomalyType.excessiveHours:
+                                  typeColor = Colors.orange;
+                                case AnomalyType.consumptionSpike:
+                                  typeColor = Colors.deepOrange;
+                                case AnomalyType.consumptionDecrease:
+                                  typeColor = Colors.blue;
+                                case AnomalyType.zeroConsumption:
+                                  typeColor = Colors.grey;
+                              }
+
+                              return InkWell(
+                                onTap: () {
+                                  _showCustomerHistoryDialog(
+                                    context,
+                                    customerId,
+                                    customerName,
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 4,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Avatar with tariff
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              typeColor.withValues(alpha: 0.8),
+                                              typeColor,
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            tariff.isNotEmpty
+                                                ? tariff
+                                                : (customerName.isNotEmpty
+                                                      ? customerName
+                                                            .substring(0, 1)
+                                                            .toUpperCase()
+                                                      : '?'),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Info
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Customer ID + Customer Name
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  customerId,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                    fontFamily: 'monospace',
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    customerName,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            // Tariff / Daya VA
+                                            Row(
+                                              children: [
+                                                if (tariff.isNotEmpty) ...[
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          Colors.blue.shade50,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      tariff,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors
+                                                            .blue
+                                                            .shade700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                ],
+                                                if (daya > 0) ...[
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          Colors.green.shade50,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            4,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      '${NumberFormat('#,###', 'id_ID').format(daya)} VA',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors
+                                                            .green
+                                                            .shade700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            // Period + Description
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_month_outlined,
+                                                  size: 11,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  billingPeriod,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    description,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: typeColor,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      // Arrow icon
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 20,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          // Pagination Footer
+                          // Pagination Footer
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.3),
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(16),
+                              ),
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 500;
+
+                                if (isNarrow) {
+                                  // Stack vertically on narrow screens
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                        // Items per page selector
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Tampilkan:',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            _buildPageSizeButton(5, theme),
+                                            const SizedBox(width: 4),
+                                            _buildPageSizeButton(10, theme),
+                                            const SizedBox(width: 4),
+                                            _buildPageSizeButton(100, theme),
+                                            const SizedBox(width: 4),
+                                            _buildPageSizeButton(
+                                              -1,
+                                              theme,
+                                              label: 'Semua',
+                                            ),
+                                          ],
+                                        ),
+                                        // Page info and navigation
+                                        if (_itemsPerPage != -1 &&
+                                            totalPages > 1) ...[
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               Text(
-                                                '$customerName ($customerId)',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                description,
+                                                '${startIndex + 1}-$endIndex dari $totalItems',
                                                 style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey.shade600,
+                                                  fontSize: 12,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
                                                 ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              _buildNavButton(
+                                                icon: Icons.chevron_left,
+                                                onPressed: _currentPage > 0
+                                                    ? () => setState(
+                                                        () => _currentPage--,
+                                                      )
+                                                    : null,
+                                                theme: theme,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      theme.colorScheme.primary,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  '${_currentPage + 1} / $totalPages',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              _buildNavButton(
+                                                icon: Icons.chevron_right,
+                                                onPressed:
+                                                    _currentPage <
+                                                        totalPages - 1
+                                                    ? () => setState(
+                                                        () => _currentPage++,
+                                                      )
+                                                    : null,
+                                                theme: theme,
                                               ),
                                             ],
                                           ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                // Wide screen: horizontal layout
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Tampilkan:',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
                                         ),
                                         const SizedBox(width: 8),
-                                        Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 14,
-                                          color: Colors.grey.shade400,
+                                        _buildPageSizeButton(5, theme),
+                                        const SizedBox(width: 4),
+                                        _buildPageSizeButton(10, theme),
+                                        const SizedBox(width: 4),
+                                        _buildPageSizeButton(100, theme),
+                                        const SizedBox(width: 4),
+                                        _buildPageSizeButton(
+                                          -1,
+                                          theme,
+                                          label: 'Semua',
                                         ),
                                       ],
                                     ),
+                                    // Page info and navigation
+                                    if (_itemsPerPage != -1 && totalPages > 1)
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${startIndex + 1}-$endIndex dari $totalItems',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          _buildNavButton(
+                                            icon: Icons.chevron_left,
+                                            onPressed: _currentPage > 0
+                                                ? () => setState(
+                                                    () => _currentPage--,
+                                                  )
+                                                : null,
+                                            theme: theme,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${_currentPage + 1} / $totalPages',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          _buildNavButton(
+                                            icon: Icons.chevron_right,
+                                            onPressed:
+                                                _currentPage < totalPages - 1
+                                                ? () => setState(
+                                                    () => _currentPage++,
+                                                  )
+                                                : null,
+                                            theme: theme,
+                                          ),
+                                        ],
+                                      ),
                                   ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPageSizeButton(int size, ThemeData theme, {String? label}) {
+    final isSelected = _itemsPerPage == size;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _itemsPerPage = size;
+          _currentPage = 0;
+        });
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
           ),
-        ],
+        ),
+        child: Text(
+          label ?? '$size',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected
+                ? Colors.white
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavButton({
+    required IconData icon,
+    required VoidCallback? onPressed,
+    required ThemeData theme,
+  }) {
+    final isEnabled = onPressed != null;
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: isEnabled
+              ? theme.colorScheme.surfaceContainerHighest
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isEnabled
+                ? theme.colorScheme.outlineVariant
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: isEnabled
+              ? theme.colorScheme.onSurface
+              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+        ),
       ),
     );
   }
@@ -1304,38 +1995,67 @@ class _CustomerHistoryChartState extends State<_CustomerHistoryChart> {
     final sortedRecords = [...widget.records]
       ..sort((a, b) => b.billingPeriod.compareTo(a.billingPeriod));
 
-    // Calculate statistics
-    String monthCompare = '-';
-    String threeMonthAvg = '-';
-    Color monthColor = Colors.grey;
-    IconData monthIcon = Icons.remove;
+    // Calculate kWh statistics
+    String kwhMonthCompare = '-';
+    String kwhThreeMonthAvg = '-';
+    Color kwhMonthColor = Colors.grey;
+    IconData kwhMonthIcon = Icons.remove;
+    Color kwhAvgColor = Colors.blue.shade700;
+    IconData kwhAvgIcon = Icons.analytics_outlined;
+
+    // Calculate RPTAG statistics
+    String rptagMonthCompare = '-';
+    String rptagThreeMonthAvg = '-';
+    Color rptagMonthColor = Colors.grey;
+    IconData rptagMonthIcon = Icons.remove;
+    Color rptagAvgColor = Colors.blue.shade700;
+    IconData rptagAvgIcon = Icons.analytics_outlined;
 
     if (sortedRecords.length >= 2) {
-      final latest =
+      // kWh comparison
+      final latestKwh =
           sortedRecords[0].offPeakConsumption +
           sortedRecords[0].peakConsumption;
-      final previous =
+      final previousKwh =
           sortedRecords[1].offPeakConsumption +
           sortedRecords[1].peakConsumption;
 
-      if (previous > 0) {
-        final percentChange = ((latest - previous) / previous) * 100;
-        monthCompare =
+      if (previousKwh > 0) {
+        final percentChange = ((latestKwh - previousKwh) / previousKwh) * 100;
+        kwhMonthCompare =
             '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
-        monthColor = percentChange >= 0
+        kwhMonthColor = percentChange >= 0
             ? Colors.red.shade600
             : Colors.green.shade600;
-        monthIcon = percentChange >= 0
+        kwhMonthIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
+      }
+
+      // RPTAG comparison
+      final latestRptag = sortedRecords[0].rptag;
+      final previousRptag = sortedRecords[1].rptag;
+
+      if (previousRptag > 0) {
+        final percentChange =
+            ((latestRptag - previousRptag) / previousRptag) * 100;
+        rptagMonthCompare =
+            '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        rptagMonthColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        rptagMonthIcon = percentChange >= 0
             ? Icons.trending_up
             : Icons.trending_down;
       }
     }
 
     if (sortedRecords.length >= 4) {
-      final latest =
+      // kWh 3-month average
+      final latestKwh =
           sortedRecords[0].offPeakConsumption +
           sortedRecords[0].peakConsumption;
-      final avg3Month =
+      final avg3MonthKwh =
           (sortedRecords[1].offPeakConsumption +
               sortedRecords[1].peakConsumption +
               sortedRecords[2].offPeakConsumption +
@@ -1344,10 +2064,37 @@ class _CustomerHistoryChartState extends State<_CustomerHistoryChart> {
               sortedRecords[3].peakConsumption) /
           3;
 
-      if (avg3Month > 0) {
-        final percentChange = ((latest - avg3Month) / avg3Month) * 100;
-        threeMonthAvg =
+      if (avg3MonthKwh > 0) {
+        final percentChange = ((latestKwh - avg3MonthKwh) / avg3MonthKwh) * 100;
+        kwhThreeMonthAvg =
             '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        kwhAvgColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        kwhAvgIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
+      }
+
+      // RPTAG 3-month average
+      final latestRptag = sortedRecords[0].rptag;
+      final avg3MonthRptag =
+          (sortedRecords[1].rptag +
+              sortedRecords[2].rptag +
+              sortedRecords[3].rptag) /
+          3;
+
+      if (avg3MonthRptag > 0) {
+        final percentChange =
+            ((latestRptag - avg3MonthRptag) / avg3MonthRptag) * 100;
+        rptagThreeMonthAvg =
+            '${percentChange >= 0 ? '+' : ''}${percentChange.toStringAsFixed(1)}%';
+        rptagAvgColor = percentChange >= 0
+            ? Colors.red.shade600
+            : Colors.green.shade600;
+        rptagAvgIcon = percentChange >= 0
+            ? Icons.trending_up
+            : Icons.trending_down;
       }
     }
 
@@ -1355,18 +2102,73 @@ class _CustomerHistoryChartState extends State<_CustomerHistoryChart> {
       elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Detail Pelanggan Section
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 500;
+
+            if (isNarrow) {
+              // Portrait/Mobile: Stack vertically
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Detail Pelanggan Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DETAIL PELANGGAN',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(thickness: 1, height: 1),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('ID Pelanggan', customer.customerId),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Nama', customer.nama),
+                      const SizedBox(height: 8),
+                      _buildDetailRow('Alamat', customer.alamat),
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        'Tarif / Daya',
+                        '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(thickness: 1, height: 1),
+                  const SizedBox(height: 16),
+                  // Statistics Section - kWh and RPTAG
+                  _buildAnomalyStatisticsSection(
+                    kwhMonthIcon: kwhMonthIcon,
+                    kwhMonthColor: kwhMonthColor,
+                    kwhMonthCompare: kwhMonthCompare,
+                    rptagMonthIcon: rptagMonthIcon,
+                    rptagMonthColor: rptagMonthColor,
+                    rptagMonthCompare: rptagMonthCompare,
+                    kwhAvgIcon: kwhAvgIcon,
+                    kwhAvgColor: kwhAvgColor,
+                    kwhThreeMonthAvg: kwhThreeMonthAvg,
+                    rptagAvgIcon: rptagAvgIcon,
+                    rptagAvgColor: rptagAvgColor,
+                    rptagThreeMonthAvg: rptagThreeMonthAvg,
+                  ),
+                ],
+              );
+            }
+
+            // Landscape/Wide: Side by side
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Detail Pelanggan Section
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'DETAIL PELANGGAN',
@@ -1375,135 +2177,341 @@ class _CustomerHistoryChartState extends State<_CustomerHistoryChart> {
                             fontSize: 20,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        const Divider(thickness: 1, height: 1),
+                        const SizedBox(height: 12),
+                        _buildDetailRow('ID Pelanggan', customer.customerId),
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Nama', customer.nama),
+                        const SizedBox(height: 8),
+                        _buildDetailRow('Alamat', customer.alamat),
+                        const SizedBox(height: 8),
+                        _buildDetailRow(
+                          'Tarif / Daya',
+                          '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    const Divider(thickness: 1, height: 1),
-                    const SizedBox(height: 12),
-                    _buildDetailRow('ID Pelanggan', customer.customerId),
-                    const SizedBox(height: 8),
-                    _buildDetailRow('Nama', customer.nama),
-                    const SizedBox(height: 8),
-                    _buildDetailRow('Alamat', customer.alamat),
-                    const SizedBox(height: 8),
-                    _buildDetailRow(
-                      'Tarif / Daya',
-                      '${customer.tariff} / ${customer.powerCapacity.toStringAsFixed(0)} VA',
+                  ),
+                  const SizedBox(width: 16),
+                  // Statistics Section - kWh and RPTAG
+                  Expanded(
+                    flex: 2,
+                    child: _buildAnomalyStatisticsSection(
+                      kwhMonthIcon: kwhMonthIcon,
+                      kwhMonthColor: kwhMonthColor,
+                      kwhMonthCompare: kwhMonthCompare,
+                      rptagMonthIcon: rptagMonthIcon,
+                      rptagMonthColor: rptagMonthColor,
+                      rptagMonthCompare: rptagMonthCompare,
+                      kwhAvgIcon: kwhAvgIcon,
+                      kwhAvgColor: kwhAvgColor,
+                      kwhThreeMonthAvg: kwhThreeMonthAvg,
+                      rptagAvgIcon: rptagAvgIcon,
+                      rptagAvgColor: rptagAvgColor,
+                      rptagThreeMonthAvg: rptagThreeMonthAvg,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              // Tren Konsumsi Section
-              Expanded(
-                flex: 1,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnomalyStatisticsSection({
+    required IconData kwhMonthIcon,
+    required Color kwhMonthColor,
+    required String kwhMonthCompare,
+    required IconData rptagMonthIcon,
+    required Color rptagMonthColor,
+    required String rptagMonthCompare,
+    required IconData kwhAvgIcon,
+    required Color kwhAvgColor,
+    required String kwhThreeMonthAvg,
+    required IconData rptagAvgIcon,
+    required Color rptagAvgColor,
+    required String rptagThreeMonthAvg,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // vs Bulan Lalu - kWh and RPTAG
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'vs Bulan Lalu',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // kWh comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today,
-                                size: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'vs Bulan Lalu',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'kWh',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(monthIcon, size: 16, color: monthColor),
-                              const SizedBox(width: 4),
-                              Text(
-                                monthCompare,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: monthColor,
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  kwhMonthIcon,
+                                  size: 14,
+                                  color: kwhMonthColor,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 3),
+                                Text(
+                                  kwhMonthCompare,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: kwhMonthColor,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
+                  ),
+                  const SizedBox(width: 8),
+                  // RPTAG comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.show_chart,
-                                size: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'vs Avg 3 Bulan',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'RPTAG',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.analytics_outlined,
-                                size: 16,
-                                color: Colors.blue.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                threeMonthAvg,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade700,
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  rptagMonthIcon,
+                                  size: 14,
+                                  color: rptagMonthColor,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 3),
+                                Text(
+                                  rptagMonthCompare,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: rptagMonthColor,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        // vs Avg 3 Bulan - kWh and RPTAG
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.show_chart, size: 13, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    'vs Avg 3 Bulan',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // kWh comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'kWh',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(kwhAvgIcon, size: 14, color: kwhAvgColor),
+                                const SizedBox(width: 3),
+                                Text(
+                                  kwhThreeMonthAvg,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: kwhAvgColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // RPTAG comparison
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'RPTAG',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  rptagAvgIcon,
+                                  size: 14,
+                                  color: rptagAvgColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  rptagThreeMonthAvg,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: rptagAvgColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

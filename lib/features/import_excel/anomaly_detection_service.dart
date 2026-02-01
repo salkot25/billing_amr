@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import '../../shared/models/anomaly_flag.dart';
 import '../../shared/models/billing_record.dart';
 import '../../core/database/database_helper.dart';
@@ -13,8 +14,9 @@ class AnomalyDetectionService {
     final latestPeriod = await _db.getLatestBillingPeriod();
     if (latestPeriod == null) return 0;
 
-    // Get operating hours threshold from settings
+    // Get settings
     final operatingHoursThreshold = await _db.getOperatingHoursThreshold();
+    final detectionMode = await _db.getAnomalyDetectionMode();
 
     // Get all billing records for the latest period
     final db = await _db.database;
@@ -38,6 +40,7 @@ class AnomalyDetectionService {
       final anomalies = await _checkRecordAnomalies(
         record,
         operatingHoursThreshold,
+        detectionMode,
       );
       anomalyCount += anomalies.length;
 
@@ -54,9 +57,11 @@ class AnomalyDetectionService {
   Future<List<AnomalyFlag>> _checkRecordAnomalies(
     BillingRecord record,
     double operatingHoursThreshold,
+    String detectionMode,
   ) async {
     final List<AnomalyFlag> anomalies = [];
     final now = DateTime.now();
+    final formatter = NumberFormat('#,###', 'id_ID');
 
     // 1. Check for stand mundur (meter reading going backward) - CRITICAL
     if (record.prevOffPeakStand != null) {
@@ -105,22 +110,68 @@ class AnomalyDetectionService {
       );
     }
 
-    // 3. Check for zero consumption - MEDIUM
+    // 3. Check for zero consumption/rptag - MEDIUM
     final totalConsumption = record.offPeakConsumption + record.peakConsumption;
-    if (totalConsumption == 0) {
-      anomalies.add(
-        AnomalyFlag(
-          billingRecordId: record.id!,
-          type: AnomalyType.zeroConsumption,
-          severity: AnomalySeverity.medium,
-          description: 'Konsumsi nol untuk periode ini',
-          flaggedAt: now,
-        ),
+    if (detectionMode == 'rptag') {
+      if (record.rptag == 0) {
+        anomalies.add(
+          AnomalyFlag(
+            billingRecordId: record.id!,
+            type: AnomalyType.zeroConsumption,
+            severity: AnomalySeverity.medium,
+            description: 'RPTAG nol untuk periode ini',
+            flaggedAt: now,
+          ),
+        );
+      }
+    } else {
+      if (totalConsumption == 0) {
+        anomalies.add(
+          AnomalyFlag(
+            billingRecordId: record.id!,
+            type: AnomalyType.zeroConsumption,
+            severity: AnomalySeverity.medium,
+            description: 'Konsumsi kWh nol untuk periode ini',
+            flaggedAt: now,
+          ),
+        );
+      }
+    }
+
+    // 4. Check for spike/decrease based on detection mode
+    final varianceThreshold = await _db.getConsumptionVarianceThreshold();
+
+    if (detectionMode == 'rptag') {
+      // RPTAG-based detection
+      await _checkRptagVariance(
+        record,
+        varianceThreshold,
+        formatter,
+        anomalies,
+        now,
+      );
+    } else {
+      // kWh-based detection (default)
+      await _checkConsumptionVariance(
+        record,
+        totalConsumption,
+        varianceThreshold,
+        anomalies,
+        now,
       );
     }
 
-    // 4. Check for consumption spike/decrease - compare with average AND previous month
-    final consumptionThreshold = await _db.getConsumptionVarianceThreshold();
+    return anomalies;
+  }
+
+  /// Check kWh consumption variance
+  Future<void> _checkConsumptionVariance(
+    BillingRecord record,
+    double totalConsumption,
+    double threshold,
+    List<AnomalyFlag> anomalies,
+    DateTime now,
+  ) async {
     final avgConsumption = await _db.getAverageConsumption(record.customerId);
     final prevMonthConsumption = await _db.getPreviousMonthConsumption(
       record.customerId,
@@ -143,21 +194,20 @@ class AnomalyDetectionService {
 
     // Check if it's a spike (exceeds threshold)
     final isSpike =
-        (varianceFromAvg != null && varianceFromAvg > consumptionThreshold) ||
-        (varianceFromPrev != null && varianceFromPrev > consumptionThreshold);
+        (varianceFromAvg != null && varianceFromAvg > threshold) ||
+        (varianceFromPrev != null && varianceFromPrev > threshold);
 
     // Check if it's a decrease (exceeds negative threshold)
     final isDecrease =
-        (varianceFromAvg != null && varianceFromAvg < -consumptionThreshold) ||
-        (varianceFromPrev != null && varianceFromPrev < -consumptionThreshold);
+        (varianceFromAvg != null && varianceFromAvg < -threshold) ||
+        (varianceFromPrev != null && varianceFromPrev < -threshold);
 
     if (isSpike) {
-      // Build description showing both comparisons
       final descParts = <String>[];
-      if (varianceFromAvg != null && varianceFromAvg > consumptionThreshold) {
+      if (varianceFromAvg != null && varianceFromAvg > threshold) {
         descParts.add('+${varianceFromAvg.toStringAsFixed(0)}% vs Avg 12 bln');
       }
-      if (varianceFromPrev != null && varianceFromPrev > consumptionThreshold) {
+      if (varianceFromPrev != null && varianceFromPrev > threshold) {
         descParts.add('+${varianceFromPrev.toStringAsFixed(0)}% vs Bln Lalu');
       }
 
@@ -166,18 +216,16 @@ class AnomalyDetectionService {
           billingRecordId: record.id!,
           type: AnomalyType.consumptionSpike,
           severity: AnomalySeverity.medium,
-          description: 'Konsumsi naik: ${descParts.join(', ')}',
+          description: 'Konsumsi kWh naik: ${descParts.join(', ')}',
           flaggedAt: now,
         ),
       );
     } else if (isDecrease) {
-      // Build description showing both comparisons
       final descParts = <String>[];
-      if (varianceFromAvg != null && varianceFromAvg < -consumptionThreshold) {
+      if (varianceFromAvg != null && varianceFromAvg < -threshold) {
         descParts.add('${varianceFromAvg.toStringAsFixed(0)}% vs Avg 12 bln');
       }
-      if (varianceFromPrev != null &&
-          varianceFromPrev < -consumptionThreshold) {
+      if (varianceFromPrev != null && varianceFromPrev < -threshold) {
         descParts.add('${varianceFromPrev.toStringAsFixed(0)}% vs Bln Lalu');
       }
 
@@ -186,13 +234,88 @@ class AnomalyDetectionService {
           billingRecordId: record.id!,
           type: AnomalyType.consumptionDecrease,
           severity: AnomalySeverity.medium,
-          description: 'Konsumsi turun: ${descParts.join(', ')}',
+          description: 'Konsumsi kWh turun: ${descParts.join(', ')}',
           flaggedAt: now,
         ),
       );
     }
+  }
 
-    return anomalies;
+  /// Check RPTAG variance
+  Future<void> _checkRptagVariance(
+    BillingRecord record,
+    double threshold,
+    NumberFormat formatter,
+    List<AnomalyFlag> anomalies,
+    DateTime now,
+  ) async {
+    final avgRptag = await _db.getAverageRptag(record.customerId);
+    final prevMonthRptag = await _db.getPreviousMonthRptag(
+      record.customerId,
+      record.billingPeriod,
+    );
+
+    double? varianceFromAvg;
+    double? varianceFromPrev;
+
+    if (avgRptag > 0) {
+      varianceFromAvg = ((record.rptag - avgRptag) / avgRptag) * 100;
+    }
+
+    if (prevMonthRptag != null && prevMonthRptag > 0) {
+      varianceFromPrev =
+          ((record.rptag - prevMonthRptag) / prevMonthRptag) * 100;
+    }
+
+    // Check if it's a spike (exceeds threshold)
+    final isSpike =
+        (varianceFromAvg != null && varianceFromAvg > threshold) ||
+        (varianceFromPrev != null && varianceFromPrev > threshold);
+
+    // Check if it's a decrease (exceeds negative threshold)
+    final isDecrease =
+        (varianceFromAvg != null && varianceFromAvg < -threshold) ||
+        (varianceFromPrev != null && varianceFromPrev < -threshold);
+
+    if (isSpike) {
+      final descParts = <String>[];
+      if (varianceFromAvg != null && varianceFromAvg > threshold) {
+        descParts.add('+${varianceFromAvg.toStringAsFixed(0)}% vs Avg 12 bln');
+      }
+      if (varianceFromPrev != null && varianceFromPrev > threshold) {
+        descParts.add('+${varianceFromPrev.toStringAsFixed(0)}% vs Bln Lalu');
+      }
+
+      anomalies.add(
+        AnomalyFlag(
+          billingRecordId: record.id!,
+          type: AnomalyType.consumptionSpike,
+          severity: AnomalySeverity.medium,
+          description:
+              'RPTAG naik (Rp ${formatter.format(record.rptag.toInt())}): ${descParts.join(', ')}',
+          flaggedAt: now,
+        ),
+      );
+    } else if (isDecrease) {
+      final descParts = <String>[];
+      if (varianceFromAvg != null && varianceFromAvg < -threshold) {
+        descParts.add('${varianceFromAvg.toStringAsFixed(0)}% vs Avg 12 bln');
+      }
+      if (varianceFromPrev != null && varianceFromPrev < -threshold) {
+        descParts.add('${varianceFromPrev.toStringAsFixed(0)}% vs Bln Lalu');
+      }
+
+      anomalies.add(
+        AnomalyFlag(
+          billingRecordId: record.id!,
+          type: AnomalyType.consumptionDecrease,
+          severity: AnomalySeverity.medium,
+          description:
+              'RPTAG turun (Rp ${formatter.format(record.rptag.toInt())}): ${descParts.join(', ')}',
+          flaggedAt: now,
+        ),
+      );
+    }
   }
 
   /// Detect anomalies for a specific customer
@@ -203,8 +326,9 @@ class AnomalyDetectionService {
     final isActive = await _db.isCustomerActive(customerId);
     if (!isActive) return 0; // Skip inactive customers
 
-    // Get operating hours threshold from settings
+    // Get settings
     final operatingHoursThreshold = await _db.getOperatingHoursThreshold();
+    final detectionMode = await _db.getAnomalyDetectionMode();
 
     final records = await _db.getBillingRecordsByCustomer(customerId);
 
@@ -218,6 +342,7 @@ class AnomalyDetectionService {
       final anomalies = await _checkRecordAnomalies(
         record,
         operatingHoursThreshold,
+        detectionMode,
       );
 
       // Insert new anomaly flags

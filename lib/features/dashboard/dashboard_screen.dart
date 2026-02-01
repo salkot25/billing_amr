@@ -218,256 +218,112 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ],
                 ),
-                child: Column(
+                child: Row(
                   children: [
+                    // Left: Icon & Title
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.dashboard_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Dashboard Billing AMR',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'PLN ULP Salatiga Kota',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Right: Period Dropdown & Import Button
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Left: App Info + Period Info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // App Description - Simplified
-                              Text(
-                                'PLN ULP Salatiga Kota',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              // Period Info dengan Selector Terintegrasi
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Left: Period Label & Icon
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.event_available,
-                                                size: 16,
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.9,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'Periode Aktif',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.85),
-                                                  fontWeight: FontWeight.w500,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          if (summary.previousPeriod !=
-                                              null) ...[
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.compare_arrows,
-                                                  size: 13,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.7),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'vs ${_formatPeriod(summary.previousPeriod!)}',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.white
-                                                        .withValues(
-                                                          alpha: 0.75,
-                                                        ),
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // Right: Period Dropdown Selector
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.1,
-                                            ),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: selectedPeriod,
-                                          dropdownColor: Colors.white,
-                                          icon: Icon(
-                                            Icons.arrow_drop_down,
-                                            color: Colors.blue.shade700,
-                                            size: 22,
-                                          ),
-                                          style: TextStyle(
-                                            color: Colors.blue.shade700,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          isDense: true,
-                                          items: availablePeriods.map((period) {
-                                            return DropdownMenuItem(
-                                              value: period,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.calendar_month,
-                                                    size: 16,
-                                                    color: Colors.blue.shade700,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(_formatPeriod(period)),
-                                                ],
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (value) {
-                                            if (value != null) {
-                                              onPeriodChanged(value);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
                               ),
                             ],
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedPeriod,
+                              icon: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: Colors.blue.shade600,
+                                size: 20,
+                              ),
+                              isDense: true,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700,
+                              ),
+                              items: availablePeriods.map((period) {
+                                return DropdownMenuItem<String>(
+                                  value: period,
+                                  child: Text(_formatPeriod(period)),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  onPeriodChanged(value);
+                                }
+                              },
+                            ),
                           ),
                         ),
-                        if (isWide) const SizedBox(width: 20),
-                        // Right: Import Button - Seimbang dengan Periode Section
-                        if (isWide)
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () =>
-                                        _showImportDialog(context, ref),
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 19,
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue.shade700
-                                                  .withValues(alpha: 0.1),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              Icons.upload_file,
-                                              size: 22,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Import Data',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                        const SizedBox(width: 10),
+                        Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
+                            onTap: () => _showImportDialog(context, ref),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.upload_file_rounded,
+                                color: Colors.blue.shade700,
+                                size: 22,
                               ),
-                            ],
+                            ),
                           ),
+                        ),
                       ],
                     ),
-                    // Mobile: Import Button Below
-                    if (!isWide) ...[
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () => _showImportDialog(context, ref),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.blue.shade700,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            elevation: 3,
-                          ),
-                          icon: const Icon(Icons.upload_file, size: 20),
-                          label: const Text(
-                            'Import Data',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
