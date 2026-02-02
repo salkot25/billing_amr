@@ -454,9 +454,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToBillingRecords(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const BillingRecordsScreen()),
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100, maxHeight: 720),
+          child: const BillingRecordsScreen(),
+        ),
+      ),
     );
   }
 }

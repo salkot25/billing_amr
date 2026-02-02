@@ -336,9 +336,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _isLoading = false;
       });
 
+      ref.invalidate(operatingHoursThresholdProvider);
+
+      // Auto re-detect anomalies with new threshold
+      final anomalyService = AnomalyDetectionService();
+      await anomalyService.detectAnomalies();
+      ref.invalidate(anomaliesProvider);
+      ref.invalidate(dashboardSummaryProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan berhasil disimpan!')),
+          const SnackBar(
+            content: Text(
+              'Pengaturan berhasil disimpan dan anomali telah dideteksi ulang!',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -374,9 +386,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _isLoading = false;
       });
 
+      // Auto re-detect anomalies with new threshold
+      final anomalyService = AnomalyDetectionService();
+      await anomalyService.detectAnomalies();
+      ref.invalidate(anomaliesProvider);
+      ref.invalidate(dashboardSummaryProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan berhasil disimpan!')),
+          const SnackBar(
+            content: Text(
+              'Pengaturan berhasil disimpan dan anomali telah dideteksi ulang!',
+            ),
+          ),
         );
       }
     } catch (e) {

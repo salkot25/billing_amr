@@ -2259,7 +2259,7 @@ class _DlpdAnalysisContentState extends State<_DlpdAnalysisContent> {
 
   Widget _buildStandMeterTable(List<BillingRecord> records) {
     final formatter = NumberFormat('#,##0', 'id_ID');
-    final displayRecords = records.take(12).toList().reversed.toList();
+    final displayRecords = records.take(13).toList().reversed.toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2272,7 +2272,7 @@ class _DlpdAnalysisContentState extends State<_DlpdAnalysisContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Tabel Stand kWh Meter (12 Bulan Terakhir)',
+            'Tabel Stand kWh Meter (13 Bulan Terakhir)',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
           const SizedBox(height: 8),

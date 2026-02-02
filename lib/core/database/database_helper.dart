@@ -414,7 +414,7 @@ class DatabaseHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  // Get billing records for a customer
+  // Get billing records for a customer (last 13 months)
   Future<List<BillingRecord>> getBillingRecordsByCustomer(
     String customerId,
   ) async {
@@ -424,7 +424,7 @@ class DatabaseHelper {
       where: 'customer_id = ?',
       whereArgs: [customerId],
       orderBy: 'billing_period DESC',
-      limit: 12,
+      limit: 13,
     );
     return maps.map((map) => BillingRecord.fromMap(map)).toList();
   }
@@ -712,16 +712,16 @@ class DatabaseHelper {
     return (result.first['rptag'] as num?)?.toDouble();
   }
 
-  // Get yearly consumption history (last 12 months from latest period)
+  // Get yearly consumption history (last 13 months from latest period)
   Future<Map<String, double>> getYearlyConsumptionHistory() async {
     final db = await database;
 
-    // Get all available periods and take last 12
+    // Get all available periods and take last 13
     final periodsResult = await db.rawQuery('''
       SELECT DISTINCT billing_period 
       FROM billing_records 
       ORDER BY billing_period DESC 
-      LIMIT 12
+      LIMIT 13
     ''');
 
     final periods = periodsResult
@@ -749,16 +749,16 @@ class DatabaseHelper {
     return history;
   }
 
-  // Get yearly RPTAG history (last 12 months from latest period)
+  // Get yearly RPTAG history (last 13 months from latest period)
   Future<Map<String, double>> getYearlyRptagHistory() async {
     final db = await database;
 
-    // Get all available periods and take last 12
+    // Get all available periods and take last 13
     final periodsResult = await db.rawQuery('''
       SELECT DISTINCT billing_period 
       FROM billing_records 
       ORDER BY billing_period DESC 
-      LIMIT 12
+      LIMIT 13
     ''');
 
     final periods = periodsResult
