@@ -1008,13 +1008,20 @@ class _AnomalyTypeBreakdownTabbedState
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(16),
                         topRight: Radius.circular(16),
                       ),
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200),
+                        bottom: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       ),
                     ),
                     child: LayoutBuilder(
@@ -1027,25 +1034,20 @@ class _AnomalyTypeBreakdownTabbedState
                           return Row(
                             children: [
                               // Left side: Detail Analisis
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.analytics_outlined,
-                                  size: 20,
-                                  color: Colors.blue.shade700,
-                                ),
+                              Icon(
+                                Icons.analytics_outlined,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
-                              const SizedBox(width: 12),
-                              const Text(
+                              const SizedBox(width: 8),
+                              Text(
                                 'Detail Analisis',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                 ),
                               ),
                               const Spacer(),
@@ -1061,25 +1063,22 @@ class _AnomalyTypeBreakdownTabbedState
                               // Title row
                               Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.analytics_outlined,
-                                      size: 18,
-                                      color: Colors.blue.shade700,
-                                    ),
+                                  Icon(
+                                    Icons.analytics_outlined,
+                                    size: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text(
+                                  Text(
                                     'Detail Analisis',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                     ),
                                   ),
                                 ],
@@ -1359,7 +1358,6 @@ class _AnomalyTypeBreakdownTabbedState
                             },
                           ),
                           // Pagination Footer
-                          // Pagination Footer
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -1368,6 +1366,12 @@ class _AnomalyTypeBreakdownTabbedState
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest
                                   .withValues(alpha: 0.3),
+                              border: Border(
+                                top: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.5),
+                                ),
+                              ),
                               borderRadius: const BorderRadius.vertical(
                                 bottom: Radius.circular(16),
                               ),

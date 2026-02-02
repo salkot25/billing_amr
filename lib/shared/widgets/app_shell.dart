@@ -101,10 +101,14 @@ class _AppShellState extends State<AppShell> {
                           ),
                         ],
                       ),
-                      child: Icon(
-                        Icons.bolt_rounded,
-                        size: 40,
-                        color: Colors.deepPurple.shade600,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/logo.jpg',
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -336,34 +340,45 @@ class _AppShellState extends State<AppShell> {
                         ),
                       ),
                       if (isExtended)
-                        InkWell(
-                          onTap: () => _showAboutDialog(context),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            margin: const EdgeInsets.all(12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.5),
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  size: 16,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'PLN Billing AMR\nv1.0.0 Desktop',
-                                    style: theme.textTheme.bodySmall?.copyWith(
+                            child: InkWell(
+                              onTap: () => _showAboutDialog(context),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 16,
                                       color: theme.colorScheme.onSurfaceVariant,
-                                      height: 1.4,
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'PLN Billing AMR\nv1.0.0 Desktop',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              height: 1.4,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -404,7 +419,7 @@ class _AppBranding extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -418,14 +433,6 @@ class _AppBranding extends StatelessWidget {
             width: isExtended ? 40 : 36,
             height: isExtended ? 40 : 36,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.primary.withValues(alpha: 0.7),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -435,7 +442,15 @@ class _AppBranding extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/images/logo.jpg',
+                width: isExtended ? 40 : 36,
+                height: isExtended ? 40 : 36,
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           if (isExtended) ...[
             const SizedBox(width: 12),

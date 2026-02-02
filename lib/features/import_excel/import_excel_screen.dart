@@ -89,8 +89,10 @@ class _ImportExcelScreenState extends ConsumerState<ImportExcelScreen> {
 
         // Refresh dashboard data
         ref.invalidate(dashboardSummaryProvider);
+        ref.invalidate(availablePeriodsProvider);
         ref.invalidate(customersProvider);
         ref.invalidate(importHistoryProvider);
+        ref.invalidate(anomaliesProvider);
 
         // Show success/warning dialog
         _showImportResultDialog(importRecord);
@@ -860,7 +862,14 @@ class _HistorySectionState extends ConsumerState<_HistorySection> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest.withValues(
-                alpha: 0.3,
+                alpha: 0.5,
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
               ),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
@@ -1000,7 +1009,6 @@ class _HistorySectionState extends ConsumerState<_HistorySection> {
                       },
                     ),
                     // Pagination Footer
-                    // Pagination Footer
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -1009,6 +1017,13 @@ class _HistorySectionState extends ConsumerState<_HistorySection> {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest
                             .withValues(alpha: 0.3),
+                        border: Border(
+                          top: BorderSide(
+                            color: theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
                         borderRadius: const BorderRadius.vertical(
                           bottom: Radius.circular(16),
                         ),

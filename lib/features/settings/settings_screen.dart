@@ -253,6 +253,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       if (confirmed != true) return;
 
+      // Check if still mounted before showing second dialog
+      if (!mounted) return;
+
       // Second confirmation
       final doubleConfirmed = await showDialog<bool>(
         context: context,
@@ -728,117 +731,109 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildDetectionModeCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
                   Icons.analytics_outlined,
-                  color: Colors.indigo,
+                  color: theme.colorScheme.primary,
                   size: 24,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Basis Pengecekan Anomali',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Basis Pengecekan Anomali',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Pilih metrik untuk mendeteksi lonjakan/penurunan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Pilih metrik untuk mendeteksi lonjakan/penurunan',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 400;
-              if (isNarrow) {
-                return Column(
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 400;
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      _buildDetectionModeOption(
+                        context,
+                        value: 'kwh',
+                        label: 'kWh (Konsumsi)',
+                        description: 'Lonjakan/penurunan pemakaian listrik',
+                        icon: Icons.bolt_rounded,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetectionModeOption(
+                        context,
+                        value: 'rptag',
+                        label: 'RPTAG (Rupiah)',
+                        description: 'Lonjakan/penurunan tagihan rupiah',
+                        icon: Icons.payments_rounded,
+                        color: Colors.green,
+                      ),
+                    ],
+                  );
+                }
+                return Row(
                   children: [
-                    _buildDetectionModeOption(
-                      context,
-                      value: 'kwh',
-                      label: 'kWh (Konsumsi)',
-                      description: 'Lonjakan/penurunan pemakaian listrik',
-                      icon: Icons.bolt_rounded,
-                      color: Colors.orange,
+                    Expanded(
+                      child: _buildDetectionModeOption(
+                        context,
+                        value: 'kwh',
+                        label: 'kWh (Konsumsi)',
+                        description: 'Lonjakan/penurunan pemakaian listrik',
+                        icon: Icons.bolt_rounded,
+                        color: Colors.orange,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _buildDetectionModeOption(
-                      context,
-                      value: 'rptag',
-                      label: 'RPTAG (Rupiah)',
-                      description: 'Lonjakan/penurunan tagihan rupiah',
-                      icon: Icons.payments_rounded,
-                      color: Colors.green,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDetectionModeOption(
+                        context,
+                        value: 'rptag',
+                        label: 'RPTAG (Rupiah)',
+                        description: 'Lonjakan/penurunan tagihan rupiah',
+                        icon: Icons.payments_rounded,
+                        color: Colors.green,
+                      ),
                     ),
                   ],
                 );
-              }
-              return Row(
-                children: [
-                  Expanded(
-                    child: _buildDetectionModeOption(
-                      context,
-                      value: 'kwh',
-                      label: 'kWh (Konsumsi)',
-                      description: 'Lonjakan/penurunan pemakaian listrik',
-                      icon: Icons.bolt_rounded,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildDetectionModeOption(
-                      context,
-                      value: 'rptag',
-                      label: 'RPTAG (Rupiah)',
-                      description: 'Lonjakan/penurunan tagihan rupiah',
-                      icon: Icons.payments_rounded,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -905,119 +900,141 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildDatabaseInfoCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoChip(
-                  context,
-                  icon: Icons.save_rounded,
-                  label: 'Ukuran',
-                  value: _dbSize ?? '-',
-                  color: Colors.blue,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoChip(
+                    context,
+                    icon: Icons.save_rounded,
+                    label: 'Ukuran',
+                    value: _dbSize ?? '-',
+                    color: Colors.blue,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildInfoChip(
-                  context,
-                  icon: Icons.folder_rounded,
-                  label: 'Lokasi',
-                  value: _dbPath != null ? path.basename(_dbPath!) : '-',
-                  color: Colors.teal,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildInfoChip(
+                    context,
+                    icon: Icons.folder_rounded,
+                    label: 'Lokasi',
+                    value: _dbPath != null ? path.basename(_dbPath!) : '-',
+                    color: Colors.teal,
+                  ),
+                ),
+              ],
+            ),
+            if (_dbPath != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _dbPath!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color: Colors.grey.shade600,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
-          ),
-          if (_dbPath != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _dbPath!,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                  color: Colors.grey.shade600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildBackupRestoreCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.backup_rounded,
+                    size: 18,
+                    color: Colors.blue.shade700,
+                  ),
                 ),
-                child: Icon(
-                  Icons.backup_rounded,
-                  size: 18,
-                  color: Colors.blue.shade700,
+                const SizedBox(width: 10),
+                const Text(
+                  'Backup & Restore',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Backup & Restore',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 350;
-              if (isNarrow) {
-                return Column(
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 350;
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          icon: Icons.cloud_upload_rounded,
+                          label: 'Export',
+                          description: 'Simpan backup',
+                          color: Colors.green,
+                          onTap: _exportDatabase,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildActionButton(
+                          context,
+                          icon: Icons.cloud_download_rounded,
+                          label: 'Import',
+                          description: 'Restore backup',
+                          color: Colors.blue,
+                          onTap: _importDatabase,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Row(
                   children: [
-                    SizedBox(
-                      width: double.infinity,
+                    Expanded(
                       child: _buildActionButton(
                         context,
                         icon: Icons.cloud_upload_rounded,
@@ -1027,9 +1044,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onTap: _exportDatabase,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: _buildActionButton(
                         context,
                         icon: Icons.cloud_download_rounded,
@@ -1041,63 +1057,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 );
-              }
-              return Row(
+              },
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: _buildActionButton(
-                      context,
-                      icon: Icons.cloud_upload_rounded,
-                      label: 'Export',
-                      description: 'Simpan backup',
-                      color: Colors.green,
-                      onTap: _exportDatabase,
-                    ),
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.amber.shade800,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: _buildActionButton(
-                      context,
-                      icon: Icons.cloud_download_rounded,
-                      label: 'Import',
-                      description: 'Restore backup',
-                      color: Colors.blue,
-                      onTap: _importDatabase,
+                    child: Text(
+                      'Import akan mengganti semua data yang ada',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.amber.shade800,
+                      ),
                     ),
                   ),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.shade200),
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Colors.amber.shade800,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Import akan mengganti semua data yang ada',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.amber.shade800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1240,16 +1231,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         });
         final db = DatabaseHelper.instance;
         await db.updateAnomalyDetectionMode(value);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Mode deteksi diubah ke ${value == 'kwh' ? 'kWh (Konsumsi)' : 'RPTAG (Rupiah)'}. Jalankan "Deteksi Ulang" untuk menerapkan.',
-              ),
-              duration: const Duration(seconds: 3),
+
+        // Store context before async gap
+        if (!mounted) return;
+        // ignore: use_build_context_synchronously
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Mode deteksi diubah ke ${value == 'kwh' ? 'kWh (Konsumsi)' : 'RPTAG (Rupiah)'}. Jalankan "Deteksi Ulang" untuk menerapkan.',
             ),
-          );
-        }
+            duration: const Duration(seconds: 3),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -1313,139 +1308,132 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required TextEditingController controller,
     required VoidCallback onSave,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Current value display
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  currentValue.toStringAsFixed(0),
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: iconColor.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
+                Icon(icon, color: iconColor, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-          // Input field
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    hintText: defaultValue,
-                    suffixText: unit,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: iconColor, width: 2),
+            // Current value display
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    currentValue.toStringAsFixed(0),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
                     ),
                   ),
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 14),
-                ),
+                  const SizedBox(width: 4),
+                  Text(
+                    unit,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: iconColor.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: onSave,
-                icon: const Icon(Icons.check, size: 20),
-                style: IconButton.styleFrom(
-                  backgroundColor: iconColor,
-                  foregroundColor: Colors.white,
+            ),
+            const SizedBox(height: 12),
+
+            // Input field
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      hintText: defaultValue,
+                      suffixText: unit,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: iconColor, width: 2),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Default: $defaultValue $unit ($defaultDescription)',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-          ),
-        ],
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.check, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: iconColor,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Default: $defaultValue $unit ($defaultDescription)',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
       ),
     );
   }

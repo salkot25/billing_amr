@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "billing_amr" "\0"
+            VALUE "CompanyName", "PLN ULP Salatiga Kota" "\0"
+            VALUE "FileDescription", "PLN Billing AMR" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "billing_amr" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 PLN ULP Salatiga Kota. All rights reserved." "\0"
             VALUE "OriginalFilename", "billing_amr.exe" "\0"
-            VALUE "ProductName", "billing_amr" "\0"
+            VALUE "ProductName", "PLN Billing AMR" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

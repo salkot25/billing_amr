@@ -16,111 +16,103 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String? selectedPeriod;
-  List<String> availablePeriods = [];
-  bool _isLoadingPeriods = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPeriods();
-  }
-
-  Future<void> _loadPeriods() async {
-    final db = ref.read(databaseProvider);
-    final periods = await db.getAllBillingPeriods();
-    if (mounted) {
-      setState(() {
-        availablePeriods = periods;
-        if (periods.isNotEmpty && selectedPeriod == null) {
-          selectedPeriod = periods.first; // Default ke periode terbaru
-        }
-        _isLoadingPeriods = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Masih loading periods
-    if (_isLoadingPeriods) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    final periodsAsync = ref.watch(availablePeriodsProvider);
 
-    // Tidak ada data sama sekali
-    if (availablePeriods.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Dashboard'),
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: _buildEmptyDataState(context),
-      );
-    }
+    return periodsAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stack) =>
+          Scaffold(body: Center(child: Text('Error: $error'))),
+      data: (availablePeriods) {
+        // Tidak ada data sama sekali
+        if (availablePeriods.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Dashboard'),
+              elevation: 0,
+              surfaceTintColor: Colors.transparent,
+            ),
+            body: _buildEmptyDataState(context),
+          );
+        }
 
-    final dashboardAsync = ref.watch(
-      dashboardSummaryByPeriodProvider(selectedPeriod!),
-    );
+        // Set default period jika belum ada atau period tidak valid
+        if (selectedPeriod == null ||
+            !availablePeriods.contains(selectedPeriod)) {
+          selectedPeriod = availablePeriods.first;
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 900;
+        final dashboardAsync = ref.watch(
+          dashboardSummaryByPeriodProvider(selectedPeriod!),
+        );
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(dashboardSummaryProvider);
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: isWide ? 32 : 16,
-                vertical: 24,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: isWide ? 1080 : constraints.maxWidth,
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Dashboard'),
+            elevation: 0,
+            surfaceTintColor: Colors.transparent,
+          ),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 900;
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(availablePeriodsProvider);
+                  ref.invalidate(
+                    dashboardSummaryByPeriodProvider(selectedPeriod!),
+                  );
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isWide ? 32 : 16,
+                    vertical: 24,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Dashboard Summary Cards
-                      dashboardAsync.when(
-                        data: (summary) => _buildSummaryCards(
-                          context,
-                          summary,
-                          ref,
-                          selectedPeriod!,
-                          availablePeriods,
-                          (period) {
-                            setState(() {
-                              selectedPeriod = period;
-                            });
-                          },
-                        ),
-                        loading: () => const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        error: (error, stack) =>
-                            Center(child: Text('Error: $error')),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isWide ? 1080 : constraints.maxWidth,
                       ),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Dashboard Summary Cards
+                          dashboardAsync.when(
+                            data: (summary) => _buildSummaryCards(
+                              context,
+                              summary,
+                              ref,
+                              selectedPeriod!,
+                              availablePeriods,
+                              (period) {
+                                setState(() {
+                                  selectedPeriod = period;
+                                });
+                              },
+                            ),
+                            loading: () => const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            error: (error, stack) =>
+                                Center(child: Text('Error: $error')),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -166,7 +158,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   MaterialPageRoute(
                     builder: (context) => const ImportExcelScreen(),
                   ),
-                ).then((_) => _loadPeriods());
+                );
               },
               icon: const Icon(Icons.upload_file),
               label: const Text('Import Data'),

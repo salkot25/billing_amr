@@ -148,6 +148,12 @@ final importHistoryProvider = FutureProvider<List<ImportRecord>>((ref) async {
   return await db.getImportHistory();
 });
 
+// Available billing periods provider
+final availablePeriodsProvider = FutureProvider<List<String>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return await db.getAllBillingPeriods();
+});
+
 // Consumption by tariff provider
 final consumptionByTariffProvider = FutureProvider<Map<String, double>>((
   ref,

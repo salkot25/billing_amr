@@ -600,6 +600,7 @@ class _CustomerDlpdCardState extends ConsumerState<_CustomerDlpdCard> {
 
         final hasAnomalies = customerAnomalies.isNotEmpty;
         final anomalyCount = customerAnomalies.length;
+        final theme = Theme.of(context);
 
         return Card(
           elevation: 0,
@@ -608,7 +609,7 @@ class _CustomerDlpdCardState extends ConsumerState<_CustomerDlpdCard> {
             side: BorderSide(
               color: hasAnomalies
                   ? Colors.orange.shade300
-                  : Colors.grey.shade200,
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
               width: hasAnomalies ? 2 : 1,
             ),
           ),
@@ -1080,7 +1081,6 @@ class _CustomerDlpdCardState extends ConsumerState<_CustomerDlpdCard> {
                     final description = anomaly['description'] as String? ?? '';
                     final billingPeriod =
                         anomaly['billing_period'] as String? ?? '';
-                    final type = anomaly['type'] as String? ?? '';
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
