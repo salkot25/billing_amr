@@ -6,7 +6,7 @@ import '../../core/database/database_helper.dart';
 class AnomalyDetectionService {
   final DatabaseHelper _db = DatabaseHelper.instance;
 
-  /// Run anomaly detection after import
+  /// Run anomaly detection after import (only latest period)
   Future<int> detectAnomalies() async {
     int anomalyCount = 0;
 
@@ -25,6 +25,46 @@ class AnomalyDetectionService {
       where: 'billing_period = ?',
       whereArgs: [latestPeriod],
     );
+
+    for (final recordMap in records) {
+      final record = BillingRecord.fromMap(recordMap);
+
+      // Check if customer is active
+      final isActive = await _db.isCustomerActive(record.customerId);
+      if (!isActive) continue; // Skip inactive customers
+
+      // Delete existing anomaly flags for this record
+      await _db.deleteAnomalyFlags(record.id!);
+
+      // Check for anomalies
+      final anomalies = await _checkRecordAnomalies(
+        record,
+        operatingHoursThreshold,
+        detectionMode,
+      );
+      anomalyCount += anomalies.length;
+
+      // Insert anomaly flags
+      for (final anomaly in anomalies) {
+        await _db.insertAnomalyFlag(anomaly);
+      }
+    }
+
+    return anomalyCount;
+  }
+
+  /// Run anomaly detection for all periods in database
+  /// Use this when threshold settings change
+  Future<int> detectAnomaliesAllPeriods() async {
+    int anomalyCount = 0;
+
+    // Get settings
+    final operatingHoursThreshold = await _db.getOperatingHoursThreshold();
+    final detectionMode = await _db.getAnomalyDetectionMode();
+
+    // Get all billing records (no period filter)
+    final db = await _db.database;
+    final records = await db.query('billing_records');
 
     for (final recordMap in records) {
       final record = BillingRecord.fromMap(recordMap);

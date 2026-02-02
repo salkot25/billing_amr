@@ -333,22 +333,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       setState(() {
         _operatingHoursThreshold = value;
-        _isLoading = false;
       });
 
       ref.invalidate(operatingHoursThresholdProvider);
 
-      // Auto re-detect anomalies with new threshold
+      // Auto re-detect anomalies for ALL periods with new threshold
       final anomalyService = AnomalyDetectionService();
-      await anomalyService.detectAnomalies();
+      await anomalyService.detectAnomaliesAllPeriods();
+
+      // Invalidate providers to refresh data
       ref.invalidate(anomaliesProvider);
       ref.invalidate(dashboardSummaryProvider);
+
+      setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Pengaturan berhasil disimpan dan anomali telah dideteksi ulang!',
+              'Pengaturan berhasil disimpan dan anomali terdeteksi ulang!',
             ),
           ),
         );
@@ -383,20 +386,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       setState(() {
         _consumptionVarianceThreshold = value;
-        _isLoading = false;
       });
 
-      // Auto re-detect anomalies with new threshold
+      // Auto re-detect anomalies for ALL periods with new threshold
       final anomalyService = AnomalyDetectionService();
-      await anomalyService.detectAnomalies();
+      await anomalyService.detectAnomaliesAllPeriods();
+
+      // Invalidate providers to refresh data
       ref.invalidate(anomaliesProvider);
       ref.invalidate(dashboardSummaryProvider);
+
+      setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Pengaturan berhasil disimpan dan anomali telah dideteksi ulang!',
+              'Pengaturan berhasil disimpan dan anomali terdeteksi ulang!',
             ),
           ),
         );
@@ -437,9 +443,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Import anomaly detection service
-      final anomalyService = AnomalyDetectionService(); // Need to import this
-      final count = await anomalyService.detectAnomalies();
+      // Re-detect anomalies for ALL periods
+      final anomalyService = AnomalyDetectionService();
+      final count = await anomalyService.detectAnomaliesAllPeriods();
 
       // Invalidate providers to refresh data
       ref.invalidate(anomaliesProvider);
