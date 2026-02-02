@@ -97,11 +97,6 @@ class _CekDlpdScreenState extends ConsumerState<CekDlpdScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cek DLPD'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;

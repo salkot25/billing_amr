@@ -204,11 +204,6 @@ class _ImportExcelScreenState extends ConsumerState<ImportExcelScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Import Data'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;

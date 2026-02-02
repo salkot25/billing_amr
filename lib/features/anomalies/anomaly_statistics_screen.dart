@@ -100,11 +100,6 @@ class _AnomalyStatisticsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard Anomali'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;

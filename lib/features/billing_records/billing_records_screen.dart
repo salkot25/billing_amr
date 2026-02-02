@@ -43,11 +43,6 @@ class _BillingRecordsScreenState extends ConsumerState<BillingRecordsScreen> {
         : ref.watch(customerSearchProvider(_searchQuery));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Data Pelanggan'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;
@@ -302,11 +297,6 @@ class _BillingRecordsScreenState extends ConsumerState<BillingRecordsScreen> {
     final anomaliesAsync = ref.watch(anomaliesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Data Anomali'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: anomaliesAsync.when(
         data: (allAnomalies) {
           final filteredAnomalies = _searchQuery.isEmpty

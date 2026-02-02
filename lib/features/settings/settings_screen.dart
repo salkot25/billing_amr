@@ -446,11 +446,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pengaturan'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(

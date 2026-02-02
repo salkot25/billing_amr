@@ -14,11 +14,6 @@ class ConsumptionChartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grafik Pemakaian'),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 900;

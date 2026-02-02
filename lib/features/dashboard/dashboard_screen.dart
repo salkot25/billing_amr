@@ -29,14 +29,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       data: (availablePeriods) {
         // Tidak ada data sama sekali
         if (availablePeriods.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Dashboard'),
-              elevation: 0,
-              surfaceTintColor: Colors.transparent,
-            ),
-            body: _buildEmptyDataState(context),
-          );
+          return Scaffold(body: _buildEmptyDataState(context));
         }
 
         // Set default period jika belum ada atau period tidak valid
@@ -50,11 +43,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Dashboard'),
-            elevation: 0,
-            surfaceTintColor: Colors.transparent,
-          ),
           body: LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 900;
