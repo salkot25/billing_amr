@@ -602,8 +602,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
+                                    color: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.4),
                                     borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withValues(alpha: 0.3),
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -611,7 +618,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       Icon(
                                         Icons.bolt_rounded,
                                         size: 16,
-                                        color: Colors.grey.shade500,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -619,7 +627,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
-                                          color: Colors.grey.shade500,
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -644,14 +654,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.deepPurple.shade500, Colors.deepPurple.shade700],
+          colors: [Colors.indigo.shade500, Colors.indigo.shade700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.shade200.withValues(alpha: 0.5),
+            color: Colors.indigo.shade200.withValues(alpha: 0.5),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -834,62 +844,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildRedetectCard(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primary.withValues(alpha: 0.08),
-            colorScheme.primary.withValues(alpha: 0.03),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.refresh_rounded,
-              color: colorScheme.primary,
-              size: 24,
-            ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary.withValues(alpha: 0.05),
+              colorScheme.primary.withValues(alpha: 0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Deteksi Ulang Anomali',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.refresh_rounded,
+                color: colorScheme.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Deteksi Ulang Anomali',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Jalankan setelah mengubah threshold untuk memperbarui data anomali',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Jalankan setelah mengubah threshold untuk memperbarui data anomali',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            onPressed: _redetectAnomalies,
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: const Text('Jalankan'),
-          ),
-        ],
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _redetectAnomalies,
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: const Text('Jalankan'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1089,18 +1107,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildResetDatabaseCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.shade50,
-            offset: const Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
+        side: BorderSide(color: Colors.red.shade300, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
