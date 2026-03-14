@@ -18,8 +18,8 @@ class _AppShellState extends State<AppShell> {
 
   final List<Widget> _pages = const [
     DashboardScreen(),
-    BillingRecordsScreen(),
     ImportExcelScreen(),
+    BillingRecordsScreen(),
     AnomalyStatisticsScreen(),
     CekDlpdScreen(),
     SettingsScreen(),
@@ -32,14 +32,14 @@ class _AppShellState extends State<AppShell> {
       icon: Icons.dashboard_rounded,
     ),
     _NavItem(
-      label: 'Data Pelanggan',
-      shortLabel: 'Data',
-      icon: Icons.people_alt_rounded,
-    ),
-    _NavItem(
       label: 'Import',
       shortLabel: 'Import',
       icon: Icons.upload_file_rounded,
+    ),
+    _NavItem(
+      label: 'Data Pelanggan',
+      shortLabel: 'Data',
+      icon: Icons.people_alt_rounded,
     ),
     _NavItem(
       label: 'Anomali',
